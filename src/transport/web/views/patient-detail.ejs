@@ -19,11 +19,35 @@
       <% } %>
     </div>
 
+    <% if (actor.activeRole === 'Receptionist') { %>
+      <div class="card">
+        <h2 style="margin-top:0">Insurance</h2>
+        <% if (insurance) { %>
+          <p><b><%= insurance.plan.name %></b> (<%= insurance.plan.provider %>) — covers <%= insurance.plan.coveragePercent %>%.
+            Member ID: <%= insurance.memberId || '—' %></p>
+        <% } else { %>
+          <p class="muted">No insurance on file.</p>
+        <% } %>
+        <form method="post" action="/patients/<%= p.id %>/insurance" class="row" style="align-items:flex-end">
+          <div style="flex:2">
+            <label for="planId">Plan</label>
+            <select id="planId" name="planId" required>
+              <% plans.forEach(function(pl){ %>
+                <option value="<%= pl.id %>" <%= insurance && insurance.plan.id === pl.id ? 'selected' : '' %>><%= pl.name %> — <%= pl.provider %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div style="flex:1"><label for="memberId">Member ID</label><input id="memberId" type="text" name="memberId" value="<%= insurance && insurance.memberId ? insurance.memberId : '' %>" /></div>
+          <div><button type="submit">Save insurance</button></div>
+        </form>
+      </div>
+    <% } %>
+
     <% if (actor.activeRole === 'Doctor') { %>
       <div class="card">
         <h2 style="margin-top:0">History</h2>
         <% if (!summary.canReadHistory) { %>
-          <p class="muted">You don't yet have access to this patient's prior history. Start a consultation, or request patient authorization.</p>
+          <p class="muted">This patient is waiting to see you. Their history opens once you start the consultation, or if they give you access from their portal.</p>
         <% } else if (summary.history.length === 0) { %>
           <p class="muted">No prior visits recorded.</p>
         <% } else { %>
@@ -37,6 +61,82 @@
           </table>
         <% } %>
       </div>
+
+      <% if (summary.canReadHistory) { %>
+        <div class="card">
+          <h2 style="margin-top:0">Medication history</h2>
+          <% if (summary.medicationHistory.length === 0) { %>
+            <p class="muted">No prescriptions recorded.</p>
+          <% } else { %>
+            <table>
+              <thead><tr><th>Issued</th><th>Medicines</th><th>Status</th></tr></thead>
+              <tbody>
+                <% summary.medicationHistory.forEach(function(rx){ %>
+                  <tr>
+                    <td><%= rx.createdAt.slice(0,10) %></td>
+                    <td><%= rx.medications.map(function(m){ return m.name + ' ' + m.dosage + (m.instructions ? ' (' + m.instructions + ')' : ''); }).join('; ') %></td>
+                    <td><span class="pill <%= rx.isActivePlan ? 'Completed' : '' %>"><%= rx.isActivePlan ? 'Active' : 'Discontinued' %></span></td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          <% } %>
+        </div>
+
+        <div class="card">
+          <h2 style="margin-top:0">Health record</h2>
+          <% if (ehr.length === 0) { %>
+            <p class="muted">No health record entries yet.</p>
+          <% } else { %>
+            <table>
+              <thead><tr><th>Date</th><th>Type</th><th>Entry</th></tr></thead>
+              <tbody>
+                <% ehr.forEach(function(r){ %>
+                  <tr><td><%= r.createdAt.slice(0,10) %></td><td><span class="pill"><%= r.category %></span></td><td><b><%= r.title %></b><br/><%= r.content %></td></tr>
+                <% }); %>
+              </tbody>
+            </table>
+          <% } %>
+          <h3 style="font-size:15px">Add an entry</h3>
+          <form method="post" action="/patients/<%= p.id %>/ehr">
+            <div class="row">
+              <div style="flex:1"><label for="ehr-cat">Type</label>
+                <select id="ehr-cat" name="category"><% categories.forEach(function(c){ %><option><%= c %></option><% }); %></select>
+              </div>
+              <div style="flex:3"><label for="ehr-title">Title *</label><input id="ehr-title" type="text" name="title" required /></div>
+            </div>
+            <label for="ehr-content">Details *</label>
+            <textarea id="ehr-content" name="content" rows="3" required></textarea>
+            <div style="margin-top:10px"><button type="submit">Add to record</button></div>
+          </form>
+        </div>
+
+        <div class="card">
+          <h2 style="margin-top:0">Share with care team</h2>
+          <form method="post" action="/patients/<%= p.id %>/assign-technician" class="row" style="align-items:flex-end">
+            <div style="flex:2">
+              <label for="technicianId">Assign a specialty technician</label>
+              <select id="technicianId" name="technicianId" required>
+                <% technicians.forEach(function(t){ %><option value="<%= t.id %>"><%= t.name %> — <%= t.specialty %></option><% }); %>
+              </select>
+            </div>
+            <div><button type="submit" <%= technicians.length ? '' : 'disabled' %>>Assign technician</button></div>
+          </form>
+          <p class="muted">The technician will see only this patient's records in their own specialty.</p>
+
+          <form method="post" action="/patients/<%= p.id %>/peer-grant" class="row" style="align-items:flex-end;margin-top:10px">
+            <div style="flex:2">
+              <label for="peer">Give another doctor access</label>
+              <select id="peer" name="doctorId" required>
+                <% doctors.forEach(function(d){ %><option value="<%= d.id %>"><%= d.name %> — <%= d.facilityName %></option><% }); %>
+              </select>
+            </div>
+            <div style="flex:1"><label for="peer-days">Days</label><input id="peer-days" type="number" name="days" min="1" max="90" value="14" required /></div>
+            <div><button type="submit">Share access</button></div>
+          </form>
+          <p class="muted">Only treating doctors can share. The patient can remove this access at any time.</p>
+        </div>
+      <% } %>
     <% } %>
   <% } %>
 </main>

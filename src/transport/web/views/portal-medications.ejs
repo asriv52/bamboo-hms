@@ -1,0 +1,64 @@
+<%- include('partials/head') %>
+<%- include('partials/portal-nav') %>
+<main>
+  <h1>My medicines</h1>
+
+  <div class="card">
+    <h2 style="margin-top:0">Current medication plan</h2>
+    <% if (!plan.active) { %>
+      <p class="muted">You have no active medication plan.</p>
+    <% } else { %>
+      <p class="muted">Issued on <%= plan.active.issuedOn %>.</p>
+      <% plan.active.items.forEach(function(m){ %>
+        <div style="border-top:1px solid var(--line);padding-top:10px;margin-top:10px">
+          <p style="margin:0"><b><%= m.name %></b> <%= m.dosage %></p>
+          <p style="margin:4px 0"><b>When to take it:</b> <%= m.instructions || 'Ask your doctor' %></p>
+          <p style="margin:4px 0"><b>Refill due:</b>
+            <% if (m.refillDue) { %>
+              <%= m.refillDue %> <% if (m.refillOverdue) { %><span class="pill Waiting">overdue</span><% } %>
+            <% } else { %>Not set<% } %>
+          </p>
+          <p style="margin:4px 0"><b>Where to refill:</b></p>
+          <% if (m.whereToRefill.length === 0) { %>
+            <p class="muted">No listed pharmacy stocks this medicine yet.</p>
+          <% } else { %>
+            <table>
+              <thead><tr><th>Pharmacy</th><th>Hours</th><th>Price (each)</th><th>Stock</th></tr></thead>
+              <tbody>
+                <% m.whereToRefill.forEach(function(w){ %>
+                  <tr>
+                    <td><%= w.pharmacyName %><br/><span class="muted"><%= w.address || '' %></span></td>
+                    <td><%= w.hours || '—' %></td>
+                    <td><%= money(w.priceCents) %></td>
+                    <td><%= w.inStock ? 'In stock' : 'Out of stock' %></td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          <% } %>
+        </div>
+      <% }); %>
+    <% } %>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Past medicines</h2>
+    <% if (plan.past.length === 0) { %>
+      <p class="muted">No earlier prescriptions.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>Issued</th><th>Medicines</th><th>Status</th></tr></thead>
+        <tbody>
+          <% plan.past.forEach(function(p){ %>
+            <tr>
+              <td><%= p.issuedOn %></td>
+              <td><%= p.medications.map(function(m){ return m.name + ' ' + m.dosage; }).join(', ') %></td>
+              <td><span class="pill">Discontinued</span></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</main>
+<%- include('partials/foot') %>

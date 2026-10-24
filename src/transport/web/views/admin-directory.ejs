@@ -1,0 +1,46 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <h1>Directory</h1>
+  <p class="muted">Staff, pharmacies, and insurance plans. Patient information is not shown to admins.</p>
+
+  <div class="card">
+    <h2 style="margin-top:0">Doctors, technicians &amp; staff</h2>
+    <table>
+      <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Roles</th><th>Specialty</th><th>License</th></tr></thead>
+      <tbody>
+        <% dir.staff.forEach(function(s){ %>
+          <tr>
+            <td><%= s.name %></td><td><%= s.email %></td><td><%= s.phone || '—' %></td>
+            <td><%= s.roles.join(', ') %></td><td><%= s.specialty || '—' %></td><td><%= s.licenseNumber || '—' %></td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Pharmacies</h2>
+    <table>
+      <thead><tr><th>Name</th><th>Code</th><th>Address</th><th>Phone</th><th>Hours</th></tr></thead>
+      <tbody>
+        <% dir.pharmacies.forEach(function(f){ %>
+          <tr><td><%= f.name %></td><td><%= f.code %></td><td><%= f.address || '—' %></td><td><%= f.phone || '—' %></td><td><%= f.operatingHours || '—' %></td></tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Insurance plans</h2>
+    <table>
+      <thead><tr><th>Plan</th><th>Provider</th><th>Premium</th><th>Covers</th></tr></thead>
+      <tbody>
+        <% dir.insurancePlans.forEach(function(p){ %>
+          <tr><td><%= p.name %></td><td><%= p.provider %></td><td><%= money(p.monthlyPremiumCents) %>/mo</td><td><%= p.coveragePercent %>%</td></tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+</main>
+<%- include('partials/foot') %>

@@ -21,12 +21,19 @@
         <div style="flex:1">
           <label>Roles * (choose one or more)</label>
           <div class="row">
-            <% ['Admin','Receptionist','Doctor','Pharmacy'].forEach(function(r){ %>
+            <% ['Admin','Receptionist','Doctor','Pharmacy','Technician'].forEach(function(r){ %>
               <label style="display:flex;align-items:center;gap:6px;margin:0">
                 <input type="checkbox" name="roles" value="<%= r %>" style="width:auto" /> <%= r %>
               </label>
             <% }); %>
           </div>
+        </div>
+        <div style="flex:1">
+          <label for="inv-spec">Technician specialty (technicians only)</label>
+          <select id="inv-spec" name="specialty">
+            <option value="">—</option>
+            <% specialties.forEach(function(s){ %><option value="<%= s %>"><%= s %></option><% }); %>
+          </select>
         </div>
       </div>
       <div style="margin-top:14px"><button type="submit">Send invitation</button></div>
@@ -49,11 +56,15 @@
                   <% if (depts.indexOf(s.department) === -1) { %><option value="<%= s.department %>" selected><%= s.department %></option><% } %>
                   <% depts.forEach(function(d){ %><option value="<%= d %>" <%= d===s.department?'selected':'' %>><%= d %></option><% }); %>
                 </select>
-                <% ['Admin','Receptionist','Doctor','Pharmacy'].forEach(function(r){ %>
+                <% ['Admin','Receptionist','Doctor','Pharmacy','Technician'].forEach(function(r){ %>
                   <label style="display:flex;align-items:center;gap:4px;margin:0;font-size:12px">
                     <input type="checkbox" name="roles" value="<%= r %>" style="width:auto" <%= s.roles.indexOf(r)>-1?'checked':'' %> /><%= r %>
                   </label>
                 <% }); %>
+                <select name="specialty" aria-label="Technician specialty for <%= s.name %>" style="width:auto">
+                  <option value="">No specialty</option>
+                  <% specialties.forEach(function(sp){ %><option value="<%= sp %>" <%= s.specialty === sp ? 'selected' : '' %>><%= sp %></option><% }); %>
+                </select>
                 <button class="secondary" type="submit">Save</button>
               </form>
             </td>

@@ -3,6 +3,23 @@ export type Role = 'Admin' | 'Receptionist' | 'Doctor' | 'Pharmacy' | 'Technicia
 export type QueueStatus = 'Waiting' | 'InProgress' | 'Completed';
 export type VisitStatus = 'Open' | 'Finalized';
 
+/**
+ * EHR record categories. A technician's specialty is one of these (never
+ * 'General'), and they may only read records in that category.
+ */
+export const EHR_CATEGORIES = [
+  'General',
+  'Orthopedic',
+  'Cardiac',
+  'Psychiatric',
+  'Radiology',
+  'Laboratory',
+] as const;
+export type EhrCategory = (typeof EHR_CATEGORIES)[number];
+export const TECHNICIAN_SPECIALTIES: EhrCategory[] = EHR_CATEGORIES.filter(
+  (c) => c !== 'General'
+);
+
 export interface StaffUser {
   id: number;
   email: string;
@@ -11,14 +28,21 @@ export interface StaffUser {
   facilityCode: string;
   department: string;
   roles: Role[];
+  /** Technician specialty (an EHR category). Null for other roles. */
+  specialty: EhrCategory | null;
+  licenseNumber: string | null;
   createdAt: string;
 }
+
+export type FacilityKind = 'Hospital' | 'Pharmacy';
 
 export interface Facility {
   code: string;
   name: string;
+  kind: FacilityKind;
   address: string | null;
   phone: string | null;
+  operatingHours: string | null;
   departments: string[];
   specialties: string | null;
   updatedAt: string;
@@ -29,6 +53,7 @@ export interface StaffInvite {
   email: string;
   roles: Role[];
   department: string;
+  specialty: EhrCategory | null;
   facilityCode: string;
   token: string;
   status: 'pending' | 'used' | 'expired';
@@ -63,6 +88,8 @@ export interface Medication {
   name: string;
   dosage: string;
   instructions: string;
+  /** Days of supply; drives the refill-due date. Optional (older plans lack it). */
+  daysSupply?: number;
 }
 
 export interface Visit {
@@ -131,9 +158,150 @@ export interface Prescription {
 export interface DispensingRecord {
   id: number;
   prescriptionId: number;
+  patientId: number | null;
   pharmacyCode: string;
   itemsDispensed: string;
   dispensedAt: string;
+}
+
+export interface EhrRecord {
+  id: number;
+  patientId: number;
+  visitId: number | null;
+  facilityCode: string;
+  category: EhrCategory;
+  title: string;
+  content: string;
+  authorId: number | null;
+  createdAt: string;
+}
+
+export interface AccessGrant {
+  id: number;
+  patientId: number;
+  grantedToDoctorId: number;
+  grantedBy: 'patient' | 'peerDoctor';
+  expiresAt: string;
+  revokedAt: string | null;
+  createdAt: string;
+}
+
+export type AppointmentStatus = 'Scheduled' | 'Cancelled' | 'Completed';
+
+export interface Appointment {
+  id: number;
+  patientId: number;
+  doctorId: number;
+  facilityCode: string;
+  scheduledAt: string;
+  reason: string | null;
+  status: AppointmentStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StockItem {
+  id: number;
+  pharmacyCode: string;
+  medicationName: string;
+  quantity: number;
+  unitPriceCents: number;
+  supplier: string | null;
+  updatedAt: string;
+}
+
+export interface ServicePrice {
+  id: number;
+  facilityCode: string;
+  serviceName: string;
+  condition: string | null;
+  estimatedCents: number;
+}
+
+export interface InsurancePlan {
+  id: number;
+  name: string;
+  provider: string;
+  monthlyPremiumCents: number;
+  coveragePercent: number;
+  description: string | null;
+}
+
+export interface PatientInsurance {
+  patientId: number;
+  plan: InsurancePlan;
+  memberId: string | null;
+  startDate: string;
+}
+
+export type ChargeStatus = 'Outstanding' | 'Paid';
+
+export interface Charge {
+  id: number;
+  patientId: number;
+  facilityCode: string;
+  source: 'Visit' | 'Pharmacy';
+  sourceId: number | null;
+  description: string;
+  amountCents: number;
+  insuranceCents: number;
+  patientCents: number;
+  referringFacilityCode: string | null;
+  status: ChargeStatus;
+  createdAt: string;
+}
+
+/** Fixed vocabulary shared by patient needs and facility support. */
+export const ACCOMMODATIONS = [
+  'Wheelchair access',
+  'Sign language interpreter',
+  'Language translator',
+  'Visual impairment support',
+  'Ground-floor access',
+  'Special dietary needs',
+  'Private room',
+] as const;
+
+export interface FacilityAccommodation {
+  id: number;
+  facilityCode: string;
+  accommodation: string;
+  capacity: number;
+  inUse: number;
+}
+
+export const ROOM_STATUSES = ['Available', 'Occupied', 'Cleaning', 'Maintenance'] as const;
+export type RoomStatus = (typeof ROOM_STATUSES)[number];
+
+export interface Room {
+  id: number;
+  facilityCode: string;
+  name: string;
+  roomType: string;
+  status: RoomStatus;
+  updatedAt: string;
+}
+
+export const EQUIPMENT_STATUSES = ['Operational', 'InUse', 'Maintenance', 'OutOfService'] as const;
+export type EquipmentStatus = (typeof EQUIPMENT_STATUSES)[number];
+
+export interface Equipment {
+  id: number;
+  facilityCode: string;
+  name: string;
+  category: string;
+  location: string | null;
+  status: EquipmentStatus;
+  updatedAt: string;
+}
+
+export interface StaffShift {
+  id: number;
+  staffId: number;
+  facilityCode: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
 }
 
 export interface AuditRecord {

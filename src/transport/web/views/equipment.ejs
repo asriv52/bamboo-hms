@@ -1,0 +1,57 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <h1>Equipment status</h1>
+  <% if (actor.activeRole === 'Technician') { %>
+    <p class="muted">Showing your specialty's equipment and general equipment.</p>
+  <% } %>
+  <div class="card">
+    <% if (items.length === 0) { %>
+      <p class="muted">No equipment is listed.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>Equipment</th><th>Type</th><th>Location</th><th>Status</th><% if (canManage) { %><th>Update</th><% } %></tr></thead>
+        <tbody>
+          <% items.forEach(function(e){ %>
+            <tr>
+              <td><b><%= e.name %></b></td>
+              <td><%= e.category %></td>
+              <td><%= e.location || '—' %></td>
+              <td><span class="pill <%= e.status === 'Operational' ? 'Completed' : (e.status === 'InUse' ? 'InProgress' : 'Waiting') %>"><%= e.status %></span></td>
+              <% if (canManage) { %>
+                <td>
+                  <form method="post" action="/equipment/<%= e.id %>/status" class="row" style="align-items:center">
+                    <select name="status" aria-label="Status for <%= e.name %>" style="width:auto">
+                      <% statuses.forEach(function(s){ %><option value="<%= s %>" <%= s === e.status ? 'selected' : '' %>><%= s %></option><% }); %>
+                    </select>
+                    <button class="secondary" type="submit">Save</button>
+                  </form>
+                </td>
+              <% } %>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+
+  <% if (canManage) { %>
+    <div class="card">
+      <h2 style="margin-top:0">Add equipment</h2>
+      <form method="post" action="/equipment">
+        <div class="row">
+          <div style="flex:2"><label for="eq-name">Name *</label><input id="eq-name" type="text" name="name" required /></div>
+          <div style="flex:1"><label for="eq-cat">Type</label>
+            <select id="eq-cat" name="category"><% categories.forEach(function(c){ %><option><%= c %></option><% }); %></select>
+          </div>
+          <div style="flex:1"><label for="eq-loc">Location</label><input id="eq-loc" type="text" name="location" /></div>
+          <div style="flex:1"><label for="eq-status">Status</label>
+            <select id="eq-status" name="status"><% statuses.forEach(function(s){ %><option><%= s %></option><% }); %></select>
+          </div>
+        </div>
+        <div style="margin-top:12px"><button type="submit">Add equipment</button></div>
+      </form>
+    </div>
+  <% } %>
+</main>
+<%- include('partials/foot') %>

@@ -30,12 +30,40 @@
       <form method="post" action="/pharmacy/dispense" style="margin-top:12px">
         <input type="hidden" name="prescriptionId" value="<%= view.prescriptionId %>" />
         <input type="hidden" name="token" value="<%= token %>" />
-        <label>Record a dispensing (what was given)</label>
+        <h3 style="font-size:15px">Record a dispensing</h3>
         <div class="row">
-          <input type="text" name="itemsDispensed" placeholder="e.g. Amoxicillin 500mg x14" />
-          <button type="submit">Record dispensing</button>
+          <div style="flex:2">
+            <label for="stockItemId">From your stock (bills the patient)</label>
+            <select id="stockItemId" name="stockItemId">
+              <option value="">— Not from stock —</option>
+              <% view.matchingStock.forEach(function(s){ %>
+                <option value="<%= s.id %>"><%= s.medicationName %> — <%= money(s.unitPriceCents) %> each, <%= s.quantity %> left</option>
+              <% }); %>
+            </select>
+          </div>
+          <div style="flex:1"><label for="quantity">Quantity</label><input id="quantity" type="number" name="quantity" min="1" /></div>
         </div>
+        <label for="itemsDispensed">What was given (optional when picking from stock)</label>
+        <input id="itemsDispensed" type="text" name="itemsDispensed" placeholder="e.g. Amoxicillin 500mg x14" />
+        <div style="margin-top:10px"><button type="submit">Record dispensing</button></div>
       </form>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0">Medication history</h2>
+      <p class="muted">Shown because this patient has a valid prescription. Medicines and dates only.</p>
+      <table>
+        <thead><tr><th>Issued</th><th>Medicines</th><th>Status</th></tr></thead>
+        <tbody>
+          <% view.history.forEach(function(h){ %>
+            <tr>
+              <td><%= h.date %></td>
+              <td><%= h.medications.map(function(m){ return m.name + ' ' + m.dosage; }).join(', ') %></td>
+              <td><span class="pill <%= h.active ? 'Completed' : '' %>"><%= h.active ? 'Active' : 'Discontinued' %></span></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
     </div>
   <% } %>
 </main>

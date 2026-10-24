@@ -7,7 +7,7 @@ import {
 } from './entityStore';
 import { enqueueEmail } from './notificationService';
 import { Actor, Patient } from './types';
-import { requireRole, AccessDenied } from './accessControl';
+import { doctorCareContext, requireRole, AccessDenied } from './accessControl';
 import {
   normalizeEmail,
   normalizePhone,
@@ -69,5 +69,11 @@ export function registerPatient(actor: Actor, input: Record<string, any>): Patie
 export function searchPatients(actor: Actor, query: string): Patient[] {
   requireRole(actor, 'Receptionist', 'Doctor');
   if (!query || query.trim() === '') return [];
-  return storeSearch(query);
+  const results = storeSearch(query);
+  // Receptionists register and queue patients, so they search everyone.
+  // Doctors only ever find patients they have a care relationship with.
+  if (actor.activeRole === 'Doctor') {
+    return results.filter((p) => doctorCareContext(actor, p.id) !== null);
+  }
+  return results;
 }
