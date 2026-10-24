@@ -1,6 +1,10 @@
 <%- include('partials/head') %>
 <header><span class="brand">Your Health Records</span></header>
 <main>
+  <% if (typeof signedOut !== 'undefined' && signedOut) { %>
+    <div class="ok" role="status">You have been signed out.</div>
+  <% } %>
+  <p><a class="btn secondary" href="/login">← Back to sign in</a></p>
   <h1>View your health records</h1>
   <p class="muted">Enter your email to receive a one-time access code. You'll then see all your past visits and prescriptions in one place.</p>
 

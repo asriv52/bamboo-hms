@@ -1,4 +1,5 @@
 import { config } from '../../core/config';
+import * as mailbox from './mailbox';
 
 /**
  * Concrete email transport. This is the ONLY place that talks to an email
@@ -21,6 +22,14 @@ export async function sendEmail(email: OutboundEmail): Promise<void> {
     console.log(
       `\n[email] to=${email.to}\n[email] subject=${email.subject}\n[email] ${email.text}\n`
     );
+    return;
+  }
+
+  // Mailbox path: capture the email into the in-memory virtual mailbox so the
+  // dev-only /mailbox page can display it. A testing sink, never a real
+  // transport — it holds PII with no persistence or access control.
+  if (config.emailProvider === 'mailbox') {
+    mailbox.capture(email);
     return;
   }
 

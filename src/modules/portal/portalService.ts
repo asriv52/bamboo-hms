@@ -9,12 +9,20 @@ import {
   listLabTestsForVisit,
   listVisitsForPatient,
 } from '../../core/entityStore';
-import { issueOtp, verifyOtp } from '../../core/otpService';
-import { normalizeEmail } from '../../core/validation';
+import { listStock } from '../../core/commerceStore';
+import { getFacility, listFacilities, listPrescriptionsForPatient } from '../../core/entityStore';
 import {
+  getPatientAccommodations,
+  listFacilityAccommodations,
+  setPatientAccommodations,
+} from '../../core/opsStore';
+import { issueOtp, verifyOtp } from '../../core/otpService';
+import { normalizeEmail, ValidationError } from '../../core/validation';
+import {
+  ACCOMMODATIONS,
   Attachment,
   LabTest,
-  Patient,
+  Medication,
   Prescription,
   Visit,
 } from '../../core/types';
@@ -166,6 +174,103 @@ export function getPortalVisitDetail(
     tests: listLabTestsForVisit(visit.id),
     attachments: listAttachmentsForVisit(visit.id),
   };
+}
+
+// ---- Medication plan --------------------------------------------------------
+
+export interface MedicationPlanItem extends Medication {
+  /** UTC date (YYYY-MM-DD) the refill is due, when days of supply is known. */
+  refillDue: string | null;
+  refillOverdue: boolean;
+  /** Pharmacies that list this medicine, cheapest first. */
+  whereToRefill: Array<{ pharmacyName: string; address: string | null; hours: string | null; priceCents: number; inStock: boolean }>;
+}
+
+export interface MedicationPlan {
+  active: { prescriptionId: number; issuedOn: string; items: MedicationPlanItem[] } | null;
+  /** Earlier (discontinued) plans, kept distinct from the active plan (NP-05). */
+  past: Array<{ prescriptionId: number; issuedOn: string; medications: Medication[] }>;
+}
+
+export function getMedicationPlan(patientId: number): MedicationPlan {
+  const all = listPrescriptionsForPatient(patientId);
+  const active = all.find((p) => p.isActivePlan) ?? null;
+  const stock = listStock();
+  return {
+    active: active
+      ? {
+          prescriptionId: active.id,
+          issuedOn: active.createdAt.slice(0, 10),
+          items: active.medications.map((m) => {
+            const due = m.daysSupply
+              ? new Date(new Date(active.createdAt).getTime() + m.daysSupply * 86400_000)
+              : null;
+            const name = m.name.toLowerCase();
+            return {
+              ...m,
+              refillDue: due ? due.toISOString().slice(0, 10) : null,
+              refillOverdue: !!due && due.getTime() < Date.now(),
+              whereToRefill: stock
+                .filter((s) => s.medicationName.toLowerCase().includes(name) || name.includes(s.medicationName.toLowerCase()))
+                .sort((a, b) => a.unitPriceCents - b.unitPriceCents)
+                .map((s) => {
+                  const f = getFacility(s.pharmacyCode);
+                  return {
+                    pharmacyName: f?.name ?? s.pharmacyCode,
+                    address: f?.address ?? null,
+                    hours: f?.operatingHours ?? null,
+                    priceCents: s.unitPriceCents,
+                    inStock: s.quantity > 0,
+                  };
+                }),
+            };
+          }),
+        }
+      : null,
+    past: all
+      .filter((p) => !p.isActivePlan)
+      .map((p) => ({ prescriptionId: p.id, issuedOn: p.createdAt.slice(0, 10), medications: p.medications })),
+  };
+}
+
+// ---- Accommodations ---------------------------------------------------------
+
+export interface AccommodationView {
+  options: readonly string[];
+  needs: string[];
+  /** Facilities that currently support ALL of the patient's needs. */
+  supportingFacilities: Array<{ name: string; kind: string; address: string | null; available: Record<string, number> }>;
+}
+
+export function getAccommodations(patientId: number): AccommodationView {
+  const needs = getPatientAccommodations(patientId);
+  const byFacility = new Map<string, Record<string, number>>();
+  for (const a of listFacilityAccommodations()) {
+    const m = byFacility.get(a.facilityCode) ?? {};
+    m[a.accommodation] = Math.max(0, a.capacity - a.inUse);
+    byFacility.set(a.facilityCode, m);
+  }
+  const supportingFacilities = listFacilities()
+    .filter((f) => needs.every((n) => (byFacility.get(f.code)?.[n] ?? 0) > 0))
+    .filter(() => needs.length > 0)
+    .map((f) => ({ name: f.name, kind: f.kind, address: f.address, available: byFacility.get(f.code) ?? {} }));
+  return { options: ACCOMMODATIONS, needs, supportingFacilities };
+}
+
+export function setAccommodationNeeds(patientId: number, raw: unknown): void {
+  const arr = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  const needs = [...new Set(arr.map(String))];
+  if (needs.some((n) => !(ACCOMMODATIONS as readonly string[]).includes(n))) {
+    throw new ValidationError('Choose accommodations from the list.');
+  }
+  setPatientAccommodations(patientId, needs);
+  recordAudit({
+    actor: null,
+    action: 'accommodation_needs_set',
+    entity: 'patient',
+    entityId: patientId,
+    detail: `${needs.length} need(s)`,
+  });
 }
 
 /**

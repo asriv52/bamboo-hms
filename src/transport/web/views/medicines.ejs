@@ -1,0 +1,36 @@
+<%- include('partials/head') %>
+<%- include('partials/nav-any') %>
+<main>
+  <h1>Medicines &amp; prices</h1>
+  <p class="muted">Which pharmacies stock a medicine, its price, and its supplier.</p>
+  <div class="card">
+    <form method="get" action="/medicines" class="row" style="align-items:flex-end">
+      <div style="flex:1">
+        <label for="q">Medicine name</label>
+        <input id="q" type="text" name="q" value="<%= q %>" placeholder="e.g. Paracetamol" />
+      </div>
+      <div><button type="submit">Search medicines</button></div>
+    </form>
+  </div>
+  <div class="card">
+    <% if (rows.length === 0) { %>
+      <p class="muted">No matching medicines found.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>Medicine</th><th>Pharmacy</th><th>Price (each)</th><th>Stock</th><th>Supplier</th></tr></thead>
+        <tbody>
+          <% rows.forEach(function(r){ %>
+            <tr>
+              <td><b><%= r.medicationName %></b></td>
+              <td><%= r.pharmacyName %></td>
+              <td><%= money(r.unitPriceCents) %></td>
+              <td><span class="pill <%= r.inStock ? 'Completed' : 'Waiting' %>"><%= r.inStock ? r.quantity + ' in stock' : 'Out of stock' %></span></td>
+              <td><%= r.supplier || '—' %></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</main>
+<%- include('partials/foot') %>

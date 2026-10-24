@@ -172,6 +172,7 @@ export function initSchema(): void {
       created_at TEXT NOT NULL
     );
 
+<<<<<<< HEAD
     -- Hospital beds/rooms. Status drives the "seat-map" availability view.
     CREATE TABLE IF NOT EXISTS beds (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -212,6 +213,152 @@ function addColumnIfMissing(table: string, column: string, definition: string): 
   const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
   if (cols.some((c) => c.name === column)) return;
   db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+=======
+    -- Categorized EHR entries. Category drives technician specialty scoping.
+    CREATE TABLE IF NOT EXISTS ehr_records (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      patient_id INTEGER NOT NULL REFERENCES patients(id),
+      visit_id INTEGER REFERENCES visits(id),
+      facility_code TEXT NOT NULL,
+      category TEXT NOT NULL,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,          -- encrypted at rest
+      author_id INTEGER REFERENCES staff_users(id),
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS technician_assignments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      technician_id INTEGER NOT NULL REFERENCES staff_users(id),
+      patient_id INTEGER NOT NULL REFERENCES patients(id),
+      assigned_by INTEGER NOT NULL REFERENCES staff_users(id),
+      created_at TEXT NOT NULL,
+      UNIQUE (technician_id, patient_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS appointments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      patient_id INTEGER NOT NULL REFERENCES patients(id),
+      doctor_id INTEGER NOT NULL REFERENCES staff_users(id),
+      facility_code TEXT NOT NULL,
+      scheduled_at TEXT NOT NULL,     -- UTC ISO timestamp
+      reason TEXT,
+      status TEXT NOT NULL,           -- 'Scheduled' | 'Cancelled' | 'Completed'
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS pharmacy_stock (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      pharmacy_code TEXT NOT NULL,
+      medication_name TEXT NOT NULL,
+      quantity INTEGER NOT NULL,
+      unit_price_cents INTEGER NOT NULL,
+      supplier TEXT,
+      updated_at TEXT NOT NULL,
+      UNIQUE (pharmacy_code, medication_name)
+    );
+
+    -- Published estimated costs per facility service / condition.
+    CREATE TABLE IF NOT EXISTS service_prices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      facility_code TEXT NOT NULL,
+      service_name TEXT NOT NULL,
+      condition TEXT,
+      estimated_cents INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS insurance_plans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      monthly_premium_cents INTEGER NOT NULL,
+      coverage_percent INTEGER NOT NULL,
+      description TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS patient_insurance (
+      patient_id INTEGER PRIMARY KEY REFERENCES patients(id),
+      plan_id INTEGER NOT NULL REFERENCES insurance_plans(id),
+      member_id TEXT,                 -- encrypted at rest
+      start_date TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS charges (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      patient_id INTEGER NOT NULL REFERENCES patients(id),
+      facility_code TEXT NOT NULL,    -- the billing facility (hospital or pharmacy)
+      source TEXT NOT NULL,           -- 'Visit' | 'Pharmacy'
+      source_id INTEGER,
+      description TEXT NOT NULL,
+      amount_cents INTEGER NOT NULL,
+      insurance_cents INTEGER NOT NULL,
+      patient_cents INTEGER NOT NULL,
+      referring_facility_code TEXT,   -- hospital that issued the prescription
+      status TEXT NOT NULL,           -- 'Outstanding' | 'Paid'
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS patient_accommodations (
+      patient_id INTEGER PRIMARY KEY REFERENCES patients(id),
+      needs TEXT NOT NULL,            -- JSON array of accommodation names
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS facility_accommodations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      facility_code TEXT NOT NULL,
+      accommodation TEXT NOT NULL,
+      capacity INTEGER NOT NULL,
+      in_use INTEGER NOT NULL DEFAULT 0,
+      UNIQUE (facility_code, accommodation)
+    );
+
+    CREATE TABLE IF NOT EXISTS rooms (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      facility_code TEXT NOT NULL,
+      name TEXT NOT NULL,
+      room_type TEXT NOT NULL,
+      status TEXT NOT NULL,           -- 'Available' | 'Occupied' | 'Cleaning' | 'Maintenance'
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS equipment (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      facility_code TEXT NOT NULL,
+      name TEXT NOT NULL,
+      category TEXT NOT NULL,         -- EHR category, or 'General'
+      location TEXT,
+      status TEXT NOT NULL,           -- 'Operational' | 'InUse' | 'Maintenance' | 'OutOfService'
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS staff_shifts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      staff_id INTEGER NOT NULL REFERENCES staff_users(id),
+      facility_code TEXT NOT NULL,
+      day_of_week INTEGER NOT NULL,   -- 0 = Sunday (UTC)
+      start_time TEXT NOT NULL,       -- 'HH:MM' UTC
+      end_time TEXT NOT NULL
+    );
+  `);
+
+  // Additive migrations for databases created by earlier builds.
+  ensureColumn('facilities', 'kind', "TEXT NOT NULL DEFAULT 'Hospital'");
+  ensureColumn('facilities', 'operating_hours', 'TEXT');
+  ensureColumn('staff_users', 'specialty', 'TEXT');
+  ensureColumn('staff_users', 'license_number', 'TEXT');
+  ensureColumn('staff_invites', 'specialty', 'TEXT');
+  ensureColumn('dispensing_records', 'patient_id', 'INTEGER');
+}
+
+/** Add a column to an existing table if it is missing (idempotent). */
+function ensureColumn(table: string, column: string, ddl: string): void {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+  }
+>>>>>>> 6cbf91ef6a5b3ebde990e101ed39dd1a43bc4572
 }
 
 export function nowUtc(): string {

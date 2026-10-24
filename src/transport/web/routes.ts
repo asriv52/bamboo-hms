@@ -14,6 +14,7 @@ import {
 import { AuthError, buildActor, login, resolveAutoRole } from '../../core/authService';
 import { getStaffByEmail } from '../../core/entityStore';
 import { listJobs } from '../../core/notificationService';
+import * as mailbox from '../email/mailbox';
 import { registerPatient, searchPatients } from '../../core/patientService';
 import { ValidationError } from '../../core/validation';
 import { Role } from '../../core/types';
@@ -45,7 +46,9 @@ import {
 } from '../../modules/pharmacy/pharmacyService';
 import {
   finalizeConsultation,
+  getOwnVisit,
   getPatientSummary,
+  getPrescriptionForDoctor,
   getVisitDetailForDoctor,
   normalizeTests,
   openVisit,
@@ -60,6 +63,11 @@ import {
   uploadVisitAttachment,
 } from '../../modules/attachments/attachmentService';
 import { getLabTest, getPrescription, getVisit } from '../../core/entityStore';
+import { EHR_CATEGORIES } from '../../core/types';
+import { listAssignableTechnicians, listEhrForDoctor } from '../../modules/ehr/ehrService';
+import { listBookableDoctors } from '../../modules/appointments/appointmentService';
+import { getInsuranceForReceptionist } from '../../modules/billing/billingService';
+import { getInsuranceMarketplace } from '../../modules/directory/directoryService';
 import { actorFromSession, requireAuth, requireWebRole } from './middleware';
 
 export const router = Router();
@@ -75,7 +83,7 @@ const upload = multer({
 });
 
 /** Map a thrown error to a friendly user message + status. */
-function friendly(err: unknown): { status: number; message: string } {
+export function friendly(err: unknown): { status: number; message: string } {
   if (err instanceof ValidationError) return { status: 400, message: err.message };
   if (err instanceof FileValidationError) return { status: 400, message: err.message };
   if (err instanceof InviteError) return { status: 400, message: err.message };
@@ -378,6 +386,7 @@ router.get('/patients/:id', requireWebRole('Receptionist', 'Doctor'), (req, res)
   const actor = res.locals.actor;
   const id = Number(req.params.id);
   try {
+    const notice = typeof req.query.notice === 'string' ? req.query.notice : null;
     if (actor.activeRole === 'Doctor') {
       const summary = getPatientSummary(actor, id);
       res.render('patient-detail', {
@@ -385,15 +394,30 @@ router.get('/patients/:id', requireWebRole('Receptionist', 'Doctor'), (req, res)
         actor,
         summary,
         registered: req.query.registered === '1',
+        notice,
+        // EHR, technician assignment, and peer grants need a qualifying relationship.
+        ehr: summary.canReadHistory ? listEhrForDoctor(actor, id) : [],
+        technicians: summary.canReadHistory ? listAssignableTechnicians(actor) : [],
+        doctors: listBookableDoctors().filter((d) => d.id !== actor.userId),
+        categories: EHR_CATEGORIES,
+        insurance: null,
+        plans: [],
       });
     } else {
-      // Receptionist: basic record, no clinical history.
+      // Receptionist: basic record + insurance, no clinical history.
       const summary = { patient: searchPatients(actor, String(id))[0] || null, history: [], canReadHistory: false };
       res.render('patient-detail', {
         title: 'Patient',
         actor,
         summary,
         registered: req.query.registered === '1',
+        notice,
+        ehr: [],
+        technicians: [],
+        doctors: [],
+        categories: EHR_CATEGORIES,
+        insurance: summary.patient ? getInsuranceForReceptionist(actor, id) : null,
+        plans: getInsuranceMarketplace({ kind: 'staff', actor }),
       });
     }
   } catch (err) {
@@ -438,13 +462,15 @@ router.post('/visits', requireWebRole('Doctor'), (req, res) => {
 router.get('/visits/:id', requireWebRole('Doctor'), (req, res) => {
   const actor = res.locals.actor;
   const visitId = Number(req.params.id);
-  const visit = getVisit(visitId);
-  // Re-derive the patient summary via the visit's patient for the form context.
   try {
-    const summary = getPatientSummary(actor, Number(req.query.patientId));
+    // Only the visit's own doctor may open it; the patient comes from the
+    // visit itself, never from the query string.
+    const visit = getOwnVisit(actor, visitId);
+    const summary = getPatientSummary(actor, visit.patientId);
     res.render('consultation', { title: 'Consultation', actor, visitId, visit, summary });
-  } catch {
-    res.render('consultation', { title: 'Consultation', actor, visitId, visit, summary: null });
+  } catch (err) {
+    const { status, message } = friendly(err);
+    res.status(status).render('error', { title: 'Error', message, actor });
   }
 });
 
@@ -470,17 +496,23 @@ router.post('/visits/:id/finalize', requireWebRole('Doctor'), (req, res) => {
   }
 });
 
-function parseMedications(body: any): Array<{ name: string; dosage: string; instructions: string }> {
+function parseMedications(
+  body: any
+): Array<{ name: string; dosage: string; instructions: string; daysSupply?: number }> {
   const names = toArray(body.medName);
   const dosages = toArray(body.medDosage);
   const instr = toArray(body.medInstructions);
+  const days = toArray(body.medDays);
   const meds = [];
   for (let i = 0; i < names.length; i++) {
     if (names[i] && names[i].trim()) {
+      const d = parseInt((days[i] || '').trim(), 10);
       meds.push({
         name: names[i].trim(),
         dosage: (dosages[i] || '').trim(),
         instructions: (instr[i] || '').trim(),
+        // Days of supply drives the patient's refill-due date. 1..365 only.
+        ...(Number.isInteger(d) && d > 0 && d <= 365 ? { daysSupply: d } : {}),
       });
     }
   }
@@ -514,12 +546,13 @@ function parseTests(
 // ---- Prescription (printable) --------------------------------------------
 
 router.get('/prescriptions/:id', requireWebRole('Doctor'), (req, res) => {
-  const rx = getPrescription(Number(req.params.id));
-  if (!rx) {
-    res.status(404).render('error', { title: 'Not found', message: 'Prescription not found.', actor: res.locals.actor });
-    return;
+  try {
+    const rx = getPrescriptionForDoctor(res.locals.actor, Number(req.params.id));
+    res.render('prescription', { title: 'Prescription', actor: res.locals.actor, rx });
+  } catch (err) {
+    const { status, message } = friendly(err);
+    res.status(status).render('error', { title: 'Error', message, actor: res.locals.actor });
   }
-  res.render('prescription', { title: 'Prescription', actor: res.locals.actor, rx });
 });
 
 // ---- Pharmacy -------------------------------------------------------------
@@ -544,7 +577,10 @@ router.get('/pharmacy/lookup', requireWebRole('Pharmacy'), (req, res) => {
 router.post('/pharmacy/dispense', requireWebRole('Pharmacy'), (req, res) => {
   const actor = res.locals.actor;
   try {
-    recordDispensing(actor, Number(req.body.prescriptionId), req.body.itemsDispensed);
+    recordDispensing(actor, Number(req.body.prescriptionId), req.body.itemsDispensed, {
+      stockItemId: req.body.stockItemId,
+      quantity: req.body.quantity,
+    });
     res.redirect(`/pharmacy/lookup?token=${encodeURIComponent(req.body.token)}&dispensed=1`);
   } catch (err) {
     const { status, message } = friendly(err);
@@ -557,6 +593,46 @@ router.post('/pharmacy/dispense', requireWebRole('Pharmacy'), (req, res) => {
 router.get('/notifications', requireAuth, (req, res) => {
   res.render('notifications', { title: 'Notifications', actor: res.locals.actor, jobs: listJobs() });
 });
+
+// ---- Virtual mailbox (dev-only email testing sink) ------------------------
+// Mounted only outside production. Captured emails contain PII and the store
+// has no auth, so these routes must never exist in a real deploy.
+
+if (process.env.NODE_ENV !== 'production') {
+  router.get('/mailbox', (req: Request, res: Response) => {
+    const grouped = mailbox.listByRecipient();
+    const recipients = mailbox.recipients();
+    const counts: Record<string, number> = {};
+    recipients.forEach((addr) => {
+      counts[addr] = grouped.get(addr)?.length ?? 0;
+    });
+    const requested = String(req.query.to || '');
+    const active =
+      requested && recipients.includes(requested)
+        ? requested
+        : recipients[0] ?? '';
+    res.render('mailbox', {
+      title: 'Mailbox',
+      actor: actorFromSession(req),
+      recipients,
+      counts,
+      active,
+      emails: active ? grouped.get(active) ?? [] : [],
+      total: mailbox.list().length,
+    });
+  });
+
+  // Lightweight poll endpoint for the page's auto-reload: returns the current
+  // number of captured emails so the client reloads only when it changes.
+  router.get('/mailbox/count', (_req: Request, res: Response) => {
+    res.json({ total: mailbox.list().length });
+  });
+
+  router.post('/mailbox/clear', (req: Request, res: Response) => {
+    mailbox.clear();
+    res.redirect('/mailbox');
+  });
+}
 
 // ---- Visit attachments (staff) --------------------------------------------
 
@@ -685,6 +761,7 @@ router.get('/portal', (req: Request, res: Response) => {
     stage,
     email: String(req.query.email || ''),
     error: null,
+    signedOut: req.query.signedOut === '1',
   });
 });
 
@@ -714,7 +791,7 @@ router.post('/portal/verify', (req: Request, res: Response) => {
 
 router.post('/portal/logout', (req: Request, res: Response) => {
   delete req.session.portalPatientId;
-  res.redirect('/portal');
+  res.redirect('/portal?signedOut=1');
 });
 
 /** Guard: require an active portal (patient) session. */

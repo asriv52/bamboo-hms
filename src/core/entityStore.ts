@@ -1,12 +1,19 @@
 import { db, nowUtc } from './db';
 import { decryptPII, encryptPII, hashPassword, shortCode } from './crypto';
 import {
+  AccessGrant,
   Attachment,
+<<<<<<< HEAD
   Bed,
   BedStatus,
   Equipment,
   EquipmentStatus,
+=======
+  DispensingRecord,
+  EhrCategory,
+>>>>>>> 6cbf91ef6a5b3ebde990e101ed39dd1a43bc4572
   Facility,
+  FacilityKind,
   LabTest,
   LabTestPriority,
   LabTestStatus,
@@ -40,6 +47,8 @@ function rowToStaff(row: any): StaffUser {
     facilityCode: row.facility_code,
     department: row.department,
     roles: JSON.parse(row.roles) as Role[],
+    specialty: (row.specialty ?? null) as EhrCategory | null,
+    licenseNumber: row.license_number ?? null,
     createdAt: row.created_at,
   };
 }
@@ -52,11 +61,13 @@ export function createStaffUser(input: {
   facilityCode: string;
   department?: string;
   roles: Role[];
+  specialty?: EhrCategory | null;
+  licenseNumber?: string | null;
 }): StaffUser {
   const info = db
     .prepare(
-      `INSERT INTO staff_users (email, password, name, phone, facility_code, department, roles, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO staff_users (email, password, name, phone, facility_code, department, roles, specialty, license_number, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       input.email,
@@ -66,9 +77,22 @@ export function createStaffUser(input: {
       input.facilityCode,
       input.department ?? 'General',
       JSON.stringify(input.roles),
+      input.specialty ?? null,
+      input.licenseNumber ?? null,
       nowUtc()
     );
   return getStaffById(Number(info.lastInsertRowid))!;
+}
+
+export function updateStaffSpecialty(id: number, specialty: EhrCategory | null): void {
+  db.prepare('UPDATE staff_users SET specialty = ? WHERE id = ?').run(specialty, id);
+}
+
+/** Doctors across all facilities (public directory: name + facility only). */
+export function listStaffWithRole(role: Role): StaffUser[] {
+  return (db.prepare('SELECT * FROM staff_users ORDER BY name ASC').all() as any[])
+    .map(rowToStaff)
+    .filter((s) => s.roles.includes(role));
 }
 
 export function listStaffByFacility(facilityCode: string): StaffUser[] {
@@ -425,6 +449,12 @@ export function listVisitsForPatient(patientId: number): Visit[] {
   return rows.map(rowToVisit);
 }
 
+export function listVisitsForQueueEntry(queueEntryId: number): Visit[] {
+  return (db.prepare('SELECT * FROM visits WHERE queue_entry_id = ?').all(queueEntryId) as any[]).map(
+    rowToVisit
+  );
+}
+
 export function doctorHasVisitWithPatient(doctorId: number, patientId: number): boolean {
   const row = db
     .prepare('SELECT 1 FROM visits WHERE doctor_id = ? AND patient_id = ? LIMIT 1')
@@ -523,15 +553,57 @@ export function getPrescriptionByToken(token: string): Prescription | null {
   return row ? rowToPrescription(row) : null;
 }
 
+export function listPrescriptionsForPatient(patientId: number): Prescription[] {
+  const rows = db
+    .prepare('SELECT * FROM prescriptions WHERE patient_id = ? ORDER BY id DESC')
+    .all(patientId);
+  return rows.map(rowToPrescription);
+}
+
 export function createDispensingRecord(input: {
   prescriptionId: number;
+  patientId: number | null;
   pharmacyCode: string;
   itemsDispensed: string;
-}): void {
-  db.prepare(
-    `INSERT INTO dispensing_records (prescription_id, pharmacy_code, items_dispensed, dispensed_at)
-     VALUES (?, ?, ?, ?)`
-  ).run(input.prescriptionId, input.pharmacyCode, input.itemsDispensed, nowUtc());
+}): number {
+  const info = db
+    .prepare(
+      `INSERT INTO dispensing_records (prescription_id, patient_id, pharmacy_code, items_dispensed, dispensed_at)
+       VALUES (?, ?, ?, ?, ?)`
+    )
+    .run(
+      input.prescriptionId,
+      input.patientId,
+      input.pharmacyCode,
+      input.itemsDispensed,
+      nowUtc()
+    );
+  return Number(info.lastInsertRowid);
+}
+
+function rowToDispensing(row: any): DispensingRecord {
+  return {
+    id: row.id,
+    prescriptionId: row.prescription_id,
+    patientId: row.patient_id ?? null,
+    pharmacyCode: row.pharmacy_code,
+    itemsDispensed: row.items_dispensed,
+    dispensedAt: row.dispensed_at,
+  };
+}
+
+export function listDispensingByPharmacy(pharmacyCode: string): DispensingRecord[] {
+  return (
+    db
+      .prepare('SELECT * FROM dispensing_records WHERE pharmacy_code = ? ORDER BY id DESC')
+      .all(pharmacyCode) as any[]
+  ).map(rowToDispensing);
+}
+
+export function pharmacyHasDispensedTo(pharmacyCode: string, patientId: number): boolean {
+  return !!db
+    .prepare('SELECT 1 FROM dispensing_records WHERE pharmacy_code = ? AND patient_id = ? LIMIT 1')
+    .get(pharmacyCode, patientId);
 }
 
 // ---- Access grants --------------------------------------------------------
@@ -548,40 +620,112 @@ export function hasActiveGrant(doctorId: number, patientId: number): boolean {
   return !!row;
 }
 
+function rowToGrant(row: any): AccessGrant {
+  return {
+    id: row.id,
+    patientId: row.patient_id,
+    grantedToDoctorId: row.granted_to_doctor_id,
+    grantedBy: row.granted_by,
+    expiresAt: row.expires_at,
+    revokedAt: row.revoked_at,
+    createdAt: row.created_at,
+  };
+}
+
+export function createGrant(input: {
+  patientId: number;
+  doctorId: number;
+  grantedBy: 'patient' | 'peerDoctor';
+  expiresAt: string;
+}): AccessGrant {
+  const info = db
+    .prepare(
+      `INSERT INTO access_grants (patient_id, granted_to_doctor_id, granted_by, expires_at, created_at)
+       VALUES (?, ?, ?, ?, ?)`
+    )
+    .run(input.patientId, input.doctorId, input.grantedBy, input.expiresAt, nowUtc());
+  return getGrant(Number(info.lastInsertRowid))!;
+}
+
+export function getGrant(id: number): AccessGrant | null {
+  const row = db.prepare('SELECT * FROM access_grants WHERE id = ?').get(id);
+  return row ? rowToGrant(row) : null;
+}
+
+export function listGrantsForPatient(patientId: number): AccessGrant[] {
+  return (
+    db
+      .prepare('SELECT * FROM access_grants WHERE patient_id = ? ORDER BY id DESC')
+      .all(patientId) as any[]
+  ).map(rowToGrant);
+}
+
+/** Grants issued to doctors at a facility (for admin consent records). */
+export function listGrantsForFacility(facilityCode: string): AccessGrant[] {
+  return (
+    db
+      .prepare(
+        `SELECT g.* FROM access_grants g JOIN staff_users s ON s.id = g.granted_to_doctor_id
+         WHERE s.facility_code = ? ORDER BY g.id DESC`
+      )
+      .all(facilityCode) as any[]
+  ).map(rowToGrant);
+}
+
+export function revokeGrant(id: number): void {
+  db.prepare('UPDATE access_grants SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL').run(
+    nowUtc(),
+    id
+  );
+}
+
 // ---- Facilities -----------------------------------------------------------
 
 function rowToFacility(row: any): Facility {
   return {
     code: row.code,
     name: row.name,
+    kind: (row.kind ?? 'Hospital') as FacilityKind,
     address: row.address,
     phone: row.phone,
+    operatingHours: row.operating_hours ?? null,
     departments: JSON.parse(row.departments) as string[],
     specialties: row.specialties,
     updatedAt: row.updated_at,
   };
 }
 
+/**
+ * Insert or update a facility. `kind` and `operatingHours` are optional on
+ * update: when omitted, the existing values are kept.
+ */
 export function upsertFacility(input: {
   code: string;
   name: string;
+  kind?: FacilityKind;
   address: string | null;
   phone: string | null;
+  operatingHours?: string | null;
   departments: string[];
   specialties: string | null;
 }): Facility {
+  const existing = getFacility(input.code);
   db.prepare(
-    `INSERT INTO facilities (code, name, address, phone, departments, specialties, updated_at)
-     VALUES (@code, @name, @address, @phone, @departments, @specialties, @updatedAt)
+    `INSERT INTO facilities (code, name, kind, address, phone, operating_hours, departments, specialties, updated_at)
+     VALUES (@code, @name, @kind, @address, @phone, @operatingHours, @departments, @specialties, @updatedAt)
      ON CONFLICT(code) DO UPDATE SET
-       name = excluded.name, address = excluded.address, phone = excluded.phone,
+       name = excluded.name, kind = excluded.kind, address = excluded.address,
+       phone = excluded.phone, operating_hours = excluded.operating_hours,
        departments = excluded.departments, specialties = excluded.specialties,
        updated_at = excluded.updated_at`
   ).run({
     code: input.code,
     name: input.name,
+    kind: input.kind ?? existing?.kind ?? 'Hospital',
     address: input.address,
     phone: input.phone,
+    operatingHours:
+      input.operatingHours !== undefined ? input.operatingHours : existing?.operatingHours ?? null,
     departments: JSON.stringify(input.departments),
     specialties: input.specialties,
     updatedAt: nowUtc(),
@@ -594,6 +738,7 @@ export function getFacility(code: string): Facility | null {
   return row ? rowToFacility(row) : null;
 }
 
+<<<<<<< HEAD
 // ---- Beds / rooms ---------------------------------------------------------
 
 function rowToBed(row: any): Bed {
@@ -719,6 +864,13 @@ export function updateEquipmentStatus(
   ).run(status, nowUtc(), id, facilityCode);
   const eq = getEquipment(id);
   return eq && eq.facilityCode === facilityCode ? eq : null;
+=======
+export function listFacilities(kind?: FacilityKind): Facility[] {
+  const rows = kind
+    ? db.prepare('SELECT * FROM facilities WHERE kind = ? ORDER BY name ASC').all(kind)
+    : db.prepare('SELECT * FROM facilities ORDER BY name ASC').all();
+  return (rows as any[]).map(rowToFacility);
+>>>>>>> 6cbf91ef6a5b3ebde990e101ed39dd1a43bc4572
 }
 
 // ---- Staff invites --------------------------------------------------------
@@ -729,6 +881,7 @@ function rowToInvite(row: any): StaffInvite {
     email: row.email,
     roles: JSON.parse(row.roles) as Role[],
     department: row.department,
+    specialty: (row.specialty ?? null) as EhrCategory | null,
     facilityCode: row.facility_code,
     token: row.token,
     status: row.status,
@@ -742,19 +895,21 @@ export function createInvite(input: {
   email: string;
   roles: Role[];
   department: string;
+  specialty?: EhrCategory | null;
   facilityCode: string;
   token: string;
   expiresAt: string;
 }): StaffInvite {
   const info = db
     .prepare(
-      `INSERT INTO staff_invites (email, roles, department, facility_code, token, status, expires_at, created_at)
-       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)`
+      `INSERT INTO staff_invites (email, roles, department, specialty, facility_code, token, status, expires_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
     )
     .run(
       input.email,
       JSON.stringify(input.roles),
       input.department,
+      input.specialty ?? null,
       input.facilityCode,
       input.token,
       input.expiresAt,

@@ -45,17 +45,27 @@
       <% } %>
       <% if (actor.activeRole === 'Admin') { %>
         <a class="btn" href="/admin/staff">Invite & manage staff</a>
+        <a class="btn secondary" href="/admin/availability">Staff availability</a>
+        <a class="btn secondary" href="/admin/rooms">Rooms</a>
+        <a class="btn secondary" href="/equipment">Equipment</a>
+        <a class="btn secondary" href="/admin/consent">Consent records</a>
         <a class="btn secondary" href="/admin/facility">Edit facility info</a>
       <% } %>
       <% if (actor.activeRole === 'Doctor') { %>
         <a class="btn" href="/queue">Open the queue</a>
+        <a class="btn secondary" href="/doctor/appointments">My appointments</a>
+        <a class="btn secondary" href="/doctor/patients">My patients</a>
         <a class="btn secondary" href="/patients">Find a patient</a>
       <% } %>
       <% if (actor.activeRole === 'Pharmacy') { %>
         <a class="btn" href="/pharmacy/lookup">Look up a prescription</a>
+        <a class="btn secondary" href="/pharmacy/stock">Stock &amp; prices</a>
+        <a class="btn secondary" href="/pharmacy/billing">Billing records</a>
       <% } %>
       <% if (actor.activeRole === 'Technician') { %>
         <a class="btn" href="/technician">Open lab tests</a>
+        <a class="btn secondary" href="/technician/ehr">Specialty records</a>
+        <a class="btn secondary" href="/equipment">Equipment</a>
       <% } %>
     </div>
   </div>

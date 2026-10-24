@@ -1,0 +1,66 @@
+<%- include('partials/head') %>
+<%- include('partials/portal-nav') %>
+<main>
+  <h1>Appointments</h1>
+
+  <div class="card">
+    <h2 style="margin-top:0">Book an appointment</h2>
+    <form method="post" action="/portal/appointments">
+      <label for="doctorId">Doctor</label>
+      <select id="doctorId" name="doctorId" required>
+        <% doctors.forEach(function(d){ %>
+          <option value="<%= d.id %>"><%= d.name %> — <%= d.department %>, <%= d.facilityName %></option>
+        <% }); %>
+      </select>
+      <div class="row">
+        <div style="flex:1">
+          <label for="scheduledAt">Date and time (UTC)</label>
+          <input id="scheduledAt" type="datetime-local" name="scheduledAt" required />
+        </div>
+        <div style="flex:2">
+          <label for="reason">Reason (optional)</label>
+          <input id="reason" type="text" name="reason" placeholder="e.g. Follow-up check" />
+        </div>
+      </div>
+      <p class="muted">Check estimated costs under <a href="/directory">Hospitals &amp; pharmacies</a> before you book.</p>
+      <div style="margin-top:10px"><button type="submit">Book appointment</button></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Your appointments</h2>
+    <% if (appointments.length === 0) { %>
+      <p class="muted">You have no appointments yet.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>When</th><th>Doctor</th><th>Status</th><th>Change</th></tr></thead>
+        <tbody>
+          <% appointments.forEach(function(a){ %>
+            <tr>
+              <td><%= utc(a.scheduledAt) %><% if (a.reason) { %><br/><span class="muted"><%= a.reason %></span><% } %></td>
+              <td><%= a.doctorName %><br/><span class="muted"><%= a.facilityName %></span></td>
+              <td>
+                <span class="pill <%= a.status === 'Cancelled' ? 'Waiting' : (a.isUpcoming ? 'InProgress' : 'Completed') %>">
+                  <%= a.status === 'Scheduled' ? (a.isUpcoming ? 'Upcoming' : 'Past') : a.status %>
+                </span>
+              </td>
+              <td>
+                <% if (a.isUpcoming) { %>
+                  <form method="post" action="/portal/appointments/<%= a.id %>/reschedule" class="row" style="align-items:center">
+                    <label class="muted" for="rs-<%= a.id %>" style="margin:0">New time</label>
+                    <input id="rs-<%= a.id %>" type="datetime-local" name="scheduledAt" required style="width:auto" />
+                    <button class="secondary" type="submit">Reschedule</button>
+                  </form>
+                  <form method="post" action="/portal/appointments/<%= a.id %>/cancel" style="margin-top:6px">
+                    <button class="secondary" type="submit">Cancel appointment</button>
+                  </form>
+                <% } else { %>—<% } %>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</main>
+<%- include('partials/foot') %>

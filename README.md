@@ -42,6 +42,12 @@ http://localhost:3000/portal as a patient.
 > With `EMAIL_PROVIDER=console` (the default), every email — including the patient portal's
 > one-time access codes — is printed to the server log. Use `/notifications` in the app to see
 > the queued/sent jobs.
+>
+> To **read** full emails in the browser instead, set `EMAIL_PROVIDER=mailbox`. Every outbound
+> email is then captured into an in-memory **virtual mailbox** at `/mailbox`, grouped into a tab
+> per recipient address, each showing the subject, plain text, and rendered HTML. It's a testing
+> aid only: the store resets on restart and the `/mailbox` route is mounted **only when
+> `NODE_ENV` is not `production`**, so PII-bearing emails are never reachable in a real deploy.
 
 ## Architecture
 

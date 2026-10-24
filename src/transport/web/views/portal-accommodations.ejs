@@ -1,0 +1,43 @@
+<%- include('partials/head') %>
+<%- include('partials/portal-nav') %>
+<main>
+  <h1>Accommodations</h1>
+  <div class="card">
+    <h2 style="margin-top:0">My needs</h2>
+    <form method="post" action="/portal/accommodations">
+      <fieldset style="border:0;padding:0;margin:0">
+        <legend class="muted">Tick everything you need when you visit.</legend>
+        <% view.options.forEach(function(o, i){ %>
+          <label style="display:flex;align-items:center;gap:8px;color:var(--fg);font-size:14px" for="need-<%= i %>">
+            <input id="need-<%= i %>" type="checkbox" name="needs" value="<%= o %>" style="width:auto" <%= view.needs.indexOf(o) > -1 ? 'checked' : '' %> />
+            <%= o %>
+          </label>
+        <% }); %>
+      </fieldset>
+      <div style="margin-top:12px"><button type="submit">Save my needs</button></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Places that support my needs</h2>
+    <% if (view.needs.length === 0) { %>
+      <p class="muted">Choose your needs above to see which places support them.</p>
+    <% } else if (view.supportingFacilities.length === 0) { %>
+      <p class="muted">No listed place currently supports all of your needs. See <a href="/directory">all hospitals &amp; pharmacies</a>.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>Place</th><th>Address</th><th>Spaces available</th></tr></thead>
+        <tbody>
+          <% view.supportingFacilities.forEach(function(f){ %>
+            <tr>
+              <td><b><%= f.name %></b> <span class="pill"><%= f.kind %></span></td>
+              <td><%= f.address || '—' %></td>
+              <td><%= view.needs.map(function(n){ return n + ': ' + f.available[n]; }).join(', ') %></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</main>
+<%- include('partials/foot') %>

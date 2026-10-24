@@ -1,0 +1,68 @@
+<%- include('partials/head') %>
+<%- include('partials/portal-nav') %>
+<main>
+  <h1>Bills &amp; costs</h1>
+
+  <div class="card">
+    <div class="row">
+      <div class="stat"><div class="n"><%= money(billing.owedCents) %></div><div class="muted">You owe now</div></div>
+      <div class="stat"><div class="n"><%= money(billing.insurancePendingCents) %></div><div class="muted">Insurance is paying</div></div>
+    </div>
+    <p class="muted">
+      <% if (billing.insurance) { %>
+        Covered by <b><%= billing.insurance.plan.name %></b> (<%= billing.insurance.plan.coveragePercent %>% of each bill).
+        <a href="/insurance-plans">Compare plans</a>
+      <% } else { %>
+        You have no insurance on file. <a href="/insurance-plans">See insurance plans</a>
+      <% } %>
+    </p>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Your charges</h2>
+    <% if (billing.charges.length === 0) { %>
+      <p class="muted">You have no charges.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>Date</th><th>For</th><th>Total</th><th>Insurance pays</th><th>You pay</th><th>Status</th></tr></thead>
+        <tbody>
+          <% billing.charges.forEach(function(c){ %>
+            <tr>
+              <td><%= c.createdAt.slice(0,10) %></td>
+              <td><%= c.description %><br/><span class="muted"><%= c.facilityName %></span></td>
+              <td><%= money(c.amountCents) %></td>
+              <td><%= money(c.insuranceCents) %></td>
+              <td><b><%= money(c.patientCents) %></b></td>
+              <td><span class="pill <%= c.status === 'Paid' ? 'Completed' : 'Waiting' %>"><%= c.status %></span></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+      <p class="muted">These are final charges.</p>
+    <% } %>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Expected costs (estimates)</h2>
+    <p class="muted">Estimates only — not final charges. "Your share" uses your current insurance.</p>
+    <% if (billing.estimates.length === 0) { %>
+      <p class="muted">No estimates have been published yet.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>Service</th><th>For</th><th>Where</th><th>Estimate</th><th>Your share (estimate)</th></tr></thead>
+        <tbody>
+          <% billing.estimates.forEach(function(e){ %>
+            <tr>
+              <td><%= e.serviceName %></td>
+              <td><%= e.condition || '—' %></td>
+              <td><%= e.facilityName %></td>
+              <td><%= money(e.estimatedCents) %></td>
+              <td><%= money(e.yourShareCents) %></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</main>
+<%- include('partials/foot') %>

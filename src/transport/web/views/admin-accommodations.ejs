@@ -1,0 +1,33 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <h1>Accommodations</h1>
+  <p class="muted">What your facility supports, and how much is free right now. Patients see this when they look for places that meet their needs.</p>
+  <div class="card">
+    <% if (rows.length === 0) { %>
+      <p class="muted">No accommodations listed yet.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>Accommodation</th><th>Capacity</th><th>In use</th><th>Available</th></tr></thead>
+        <tbody>
+          <% rows.forEach(function(a){ %>
+            <tr><td><%= a.accommodation %></td><td><%= a.capacity %></td><td><%= a.inUse %></td><td><b><%= Math.max(0, a.capacity - a.inUse) %></b></td></tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0">Set an accommodation</h2>
+    <form method="post" action="/admin/accommodations" class="row" style="align-items:flex-end">
+      <div style="flex:2"><label for="ac-name">Accommodation</label>
+        <select id="ac-name" name="accommodation"><% options.forEach(function(o){ %><option><%= o %></option><% }); %></select>
+      </div>
+      <div style="flex:1"><label for="ac-cap">Capacity</label><input id="ac-cap" type="number" name="capacity" min="0" required /></div>
+      <div style="flex:1"><label for="ac-use">In use</label><input id="ac-use" type="number" name="inUse" min="0" value="0" required /></div>
+      <div><button type="submit">Save</button></div>
+    </form>
+    <p class="muted">Set capacity to 0 to remove an accommodation.</p>
+  </div>
+</main>
+<%- include('partials/foot') %>

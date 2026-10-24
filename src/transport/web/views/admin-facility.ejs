@@ -15,6 +15,8 @@
       </div>
       <label>Departments * (comma-separated)</label>
       <input type="text" name="departments" value="<%= facility ? facility.departments.join(', ') : 'General, Pharmacy' %>" />
+      <label for="hours">Opening hours (shown to everyone)</label>
+      <input id="hours" type="text" name="operatingHours" placeholder="e.g. Mon–Fri 08:00–18:00, Sat 09:00–13:00" value="<%= facility && facility.operatingHours ? facility.operatingHours : '' %>" />
       <label>Specialties</label>
       <textarea name="specialties" rows="3"><%= facility && facility.specialties ? facility.specialties : '' %></textarea>
       <div style="margin-top:14px"><button type="submit">Save facility info</button></div>
