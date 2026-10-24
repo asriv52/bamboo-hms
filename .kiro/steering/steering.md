@@ -277,7 +277,6 @@ All demo data must be **synthetic**. No real patient information is ever used.
 - **Input validation is mandatory** on every inbound path — API endpoint and web form. Reject with a clear error message; never silently drop input.
 - **No real PII in version control, seed scripts, or demo data.** Use generated synthetic names, emails, and phone numbers.
 - **Graceful degradation:** if the email provider is down, the triggering action (registration, visit creation, etc.) must still succeed. Queue the notification and retry.
-- **No SMS infrastructure in this build.** Do not add SMS libraries, gateway clients, or SMS-parsing code. SMS is a future optional module.
 - **Single-command local start:** `npm run dev` (or equivalent) must bring up the full stack with seed data and demo logins.
 - **Free-tier deployable:** the production target must run on a free hosting tier (e.g., Railway, Render, Fly.io).
 

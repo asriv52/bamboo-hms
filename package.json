@@ -2,7 +2,7 @@
   "name": "hackachusetts-healthcare-project",
   "version": "0.1.0",
   "private": true,
-  "description": "Hospital Management System for rural / low-resource clinics (Hackachusetts).",
+  "description": "Bamboo HMS: one health record that follows the patient across clinics, pharmacies, and labs (Hackachusetts).",
   "type": "commonjs",
   "scripts": {
     "build": "tsc && npm run copy-views",
