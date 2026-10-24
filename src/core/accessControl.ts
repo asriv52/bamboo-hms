@@ -259,7 +259,7 @@ export const FEATURE_MATRIX: Record<StaffFeature, Role[]> = {
   'pharmacy.stock.manage': ['Pharmacy'],
   'pharmacy.purchase_history': ['Pharmacy'],
   'pharmacy.billing': ['Pharmacy'],
-  'equipment.read': ['Admin', 'Doctor', 'Technician'],
+  'equipment.read': ['Admin', 'Technician'],
   'equipment.manage': ['Admin'],
   'rooms.manage': ['Admin'],
   staff_availability: ['Admin'],

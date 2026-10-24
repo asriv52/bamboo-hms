@@ -400,9 +400,9 @@ featureRouter.post('/patients/:id/insurance', requireWebRole('Receptionist'), (r
   act(res, `/patients/${id}`, 'Insurance saved.', () => setInsuranceForPatient(res.locals.actor, id, req.body));
 });
 
-// ---- Equipment (Admin / Doctor / Technician) --------------------------------
+// ---- Equipment (Admin / Technician) --------------------------------
 
-featureRouter.get('/equipment', requireWebRole('Admin', 'Doctor', 'Technician'), (req, res) => {
+featureRouter.get('/equipment', requireWebRole('Admin', 'Technician'), (req, res) => {
   const actor = res.locals.actor;
   renderSafe(res, 'equipment', () => ({
     title: 'Equipment status',

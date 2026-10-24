@@ -204,7 +204,6 @@ access is intentionally narrow — they are NOT a clinical or administrative rol
 - Patient EHR **only for patients under their care** (qualifying visit, patient authorization, or peer authorization per the Access Control Rules).
 - Pharmacy stock levels.
 - Medication history for their patients.
-- Equipment status.
 - Consultations: diagnosis, notes, prescriptions, recommended lab tests, attachments, and EHR entries by category.
 - Peer authorization: grant another doctor time-limited access to a patient under their care. Assign a specialty technician to a patient.
 - Wearable data (WHOOP) — **doctors only; no other staff class**:
@@ -220,7 +219,7 @@ access is intentionally narrow — they are NOT a clinical or administrative rol
 
 ### Enforcement notes
 - The shared "ALL" baseline is additive; it never grants access to another class's restricted views.
-- When a feature appears for multiple classes (e.g., equipment status for admins, doctors, and technicians), each class still sees only the subset its role permits.
+- When a feature appears for multiple classes (e.g., equipment status for admins and technicians), each class still sees only the subset its role permits.
 - Any new feature added in future iterations must be placed under the correct user class here before it is built, and must respect the Access Control Rules and the Security Specialist constraints in `personas.txt`.
 - This matrix is mirrored in code as `FEATURE_MATRIX` in `src/core/accessControl.ts`. Staff services call `requireFeature()`; denials are audited. Patient-portal services are scoped by the portal session's patient id. Keep the two in sync.
 - Costs shown before a service are labeled **estimates**; recorded charges are labeled **final**. Insurance coverage % splits each charge into insurer and patient portions.

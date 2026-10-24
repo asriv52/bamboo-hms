@@ -99,14 +99,14 @@ function seed(): void {
   initSchema();
   reset();
 
-  const FACILITY = 'RURAL-CLINIC-01';
+  const FACILITY = 'CLINIC-01';
   const PHARMACY = 'PHARM-01';
   const PHARMACY2 = 'PHARM-02';
 
   // Facilities: one hospital, two pharmacies (public directory + price comparison).
   upsertFacility({
     code: FACILITY,
-    name: 'Rural Clinic 01',
+    name: 'Community Clinic 01',
     kind: 'Hospital',
     address: '1 Clinic Rd, Demo Town',
     phone: '+15550000000',
@@ -198,7 +198,7 @@ function seed(): void {
   // Insurance marketplace + published estimates + pharmacy stock.
   const basic = createInsurancePlan({ name: 'Community Basic', provider: 'Demo Mutual', monthlyPremiumCents: 800, coveragePercent: 50, description: 'Covers half of clinic and pharmacy bills.' });
   createInsurancePlan({ name: 'Family Plus', provider: 'Demo Mutual', monthlyPremiumCents: 2500, coveragePercent: 80, description: 'Covers 80% for the whole household.' });
-  createInsurancePlan({ name: 'Rural Essentials', provider: 'Sample Health Co-op', monthlyPremiumCents: 300, coveragePercent: 30, description: 'Low-cost cover for essential care.' });
+  createInsurancePlan({ name: 'Basic Essentials', provider: 'Sample Health Co-op', monthlyPremiumCents: 300, coveragePercent: 30, description: 'Low-cost cover for essential care.' });
 
   createServicePrice({ facilityCode: FACILITY, serviceName: 'Consultation', condition: 'General visit', estimatedCents: 1500 });
   createServicePrice({ facilityCode: FACILITY, serviceName: 'Complete Blood Count', condition: 'Anemia / infection screening', estimatedCents: 800 });

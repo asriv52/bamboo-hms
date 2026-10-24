@@ -42,7 +42,7 @@ import {
  * availability, and accommodation capacity. All data is scoped to the actor's
  * own facility. None of it contains patient data.
  *
- * Equipment is the one shared view: admins and doctors see all of their
+ * Equipment is the one shared view: admins see all of their
  * facility's equipment; technicians see only their specialty's equipment plus
  * general equipment.
  */

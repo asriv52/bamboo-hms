@@ -43,7 +43,6 @@
       more.push({ href: '/patients/new', label: 'Register patient', icon: 'personAdd' });
     }
     if (role === 'Doctor') {
-      pinned.push({ href: '/equipment', label: 'Equipment' });
       more.push({ href: '/doctor/appointments', label: 'Appointments', icon: 'calendar' });
       more.push({ href: '/doctor/patients', label: 'My patients', icon: 'group' });
       more.push({ href: '/medicines', label: 'Pharmacy stock', icon: 'pill' });
@@ -75,7 +74,7 @@
     if (role !== 'Doctor') more.push({ href: '/insurance-plans', label: 'Insurance', icon: 'shield' });
     more.push({ href: '/notifications', label: 'Notifications', icon: 'bell' });
     if (typeof devMailbox !== 'undefined' && devMailbox) {
-      more.push({ href: '/mailbox', label: 'Mailbox', icon: 'mail' });
+      //more.push({ href: '/mailbox', label: 'Mailbox', icon: 'mail' });
     }
   }
 %>
@@ -106,7 +105,7 @@
     <% } %>
   </div>
 
-  <a class="brand" href="<%= signedIn ? '/dashboard' : '/' %>">Rural Clinic HMS</a>
+  <a class="brand" href="<%= signedIn ? '/dashboard' : '/' %>">Clinic HMS</a>
 
   <div class="header-right">
     <% if (signedIn) { %>
