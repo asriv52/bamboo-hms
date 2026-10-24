@@ -1,0 +1,28 @@
+<header>
+  <span class="brand">Rural Clinic HMS</span>
+  <% if (typeof actor !== 'undefined' && actor) { %>
+    <nav>
+      <a href="/dashboard">Dashboard</a>
+      <% if (['Receptionist','Doctor'].includes(actor.activeRole)) { %>
+        <a href="/patients">Find patient</a>
+        <a href="/queue">Queue</a>
+      <% } %>
+      <% if (actor.activeRole === 'Receptionist') { %>
+        <a href="/patients/new">Register patient</a>
+      <% } %>
+      <% if (actor.activeRole === 'Admin') { %>
+        <a href="/admin/staff">Staff</a>
+        <a href="/admin/facility">Facility</a>
+      <% } %>
+      <% if (actor.activeRole === 'Pharmacy') { %>
+        <a href="/pharmacy/lookup">Pharmacy lookup</a>
+      <% } %>
+      <a href="/notifications">Notifications</a>
+    </nav>
+    <span class="spacer"></span>
+    <span class="who"><%= actor.name %> · <%= actor.activeRole %> · <%= actor.facilityCode %></span>
+    <form method="post" action="/logout" style="margin:0">
+      <button class="secondary" type="submit">Sign out</button>
+    </form>
+  <% } %>
+</header>

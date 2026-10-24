@@ -1,0 +1,33 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <h1>Consultation</h1>
+  <% if (summary && summary.patient) { %>
+    <p class="muted">Patient: <b><%= summary.patient.name %></b> (ID <%= summary.patient.id %>) ·
+      allergies: <%= summary.patient.allergies || 'none recorded' %></p>
+  <% } %>
+  <div class="card">
+    <form method="post" action="/visits/<%= visitId %>/finalize">
+      <label>Diagnosis *</label>
+      <input type="text" name="diagnosis" required />
+      <label>Notes</label>
+      <textarea name="notes" rows="3"></textarea>
+
+      <h2 style="font-size:16px">Prescription (optional)</h2>
+      <p class="muted">Add one row per medication. Leave blank to finalize without a prescription.</p>
+      <div id="meds">
+        <% for (var i=0;i<3;i++){ %>
+          <div class="grid3" style="margin-bottom:6px">
+            <input type="text" name="medName" placeholder="Medication name" />
+            <input type="text" name="medDosage" placeholder="Dosage e.g. 500mg" />
+            <input type="text" name="medInstructions" placeholder="Instructions e.g. twice daily" />
+          </div>
+        <% } %>
+      </div>
+
+      <div style="margin-top:14px"><button type="submit">Finalize visit & notify patient</button></div>
+    </form>
+    <p class="muted" style="margin-top:12px">Finalizing marks the queue entry completed and emails the patient a visit summary (and prescription link, if any).</p>
+  </div>
+</main>
+<%- include('partials/foot') %>

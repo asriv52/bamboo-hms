@@ -1,0 +1,43 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <% if (registered) { %><div class="ok">Patient registered. A confirmation email has been queued.</div><% } %>
+  <% if (!summary || !summary.patient) { %>
+    <h1>Patient</h1>
+    <div class="card"><p class="muted">Patient not found.</p></div>
+  <% } else { var p = summary.patient; %>
+    <h1><%= p.name %></h1>
+    <div class="card">
+      <p><b>Patient ID:</b> <%= p.id %> &nbsp; <b>Email:</b> <%= p.email %></p>
+      <p><b>Phone:</b> <%= p.phone || '—' %> &nbsp; <b>Blood type:</b> <%= p.bloodType || '—' %></p>
+      <p><b>Allergies:</b> <%= p.allergies || '—' %></p>
+      <% if (actor.activeRole === 'Doctor') { %>
+        <form method="post" action="/visits" style="margin-top:8px">
+          <input type="hidden" name="patientId" value="<%= p.id %>" />
+          <button type="submit">Start consultation</button>
+        </form>
+      <% } %>
+    </div>
+
+    <% if (actor.activeRole === 'Doctor') { %>
+      <div class="card">
+        <h2 style="margin-top:0">History</h2>
+        <% if (!summary.canReadHistory) { %>
+          <p class="muted">You don't yet have access to this patient's prior history. Start a consultation, or request patient authorization.</p>
+        <% } else if (summary.history.length === 0) { %>
+          <p class="muted">No prior visits recorded.</p>
+        <% } else { %>
+          <table>
+            <thead><tr><th>Date</th><th>Status</th><th>Diagnosis</th></tr></thead>
+            <tbody>
+              <% summary.history.forEach(function(v){ %>
+                <tr><td><%= v.createdAt.slice(0,10) %></td><td><%= v.status %></td><td><%= v.diagnosis || '—' %></td></tr>
+              <% }); %>
+            </tbody>
+          </table>
+        <% } %>
+      </div>
+    <% } %>
+  <% } %>
+</main>
+<%- include('partials/foot') %>

@@ -1,0 +1,88 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <h1>Staff &amp; invitations</h1>
+  <% if (sent) { %><div class="ok">Invitation sent. The invitee will receive an activation link by email.</div><% } %>
+  <% if (error) { %><div class="error"><%= error %></div><% } %>
+
+  <div class="card">
+    <h2 style="margin-top:0">Invite a staff member</h2>
+    <form method="post" action="/admin/invites">
+      <label>Email *</label>
+      <input type="email" name="email" required />
+      <div class="row">
+        <div style="flex:1">
+          <label>Department *</label>
+          <% var depts = (facility && facility.departments) ? facility.departments : ['General']; %>
+          <select name="department">
+            <% depts.forEach(function(d){ %><option value="<%= d %>"><%= d %></option><% }); %>
+          </select>
+        </div>
+        <div style="flex:1">
+          <label>Roles * (choose one or more)</label>
+          <div class="row">
+            <% ['Admin','Receptionist','Doctor','Pharmacy'].forEach(function(r){ %>
+              <label style="display:flex;align-items:center;gap:6px;margin:0">
+                <input type="checkbox" name="roles" value="<%= r %>" style="width:auto" /> <%= r %>
+              </label>
+            <% }); %>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:14px"><button type="submit">Send invitation</button></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Current staff</h2>
+    <table>
+      <thead><tr><th>Name</th><th>Email</th><th>Department &amp; roles</th><th></th></tr></thead>
+      <tbody>
+        <% staff.forEach(function(s){ %>
+          <tr>
+            <td><%= s.name %></td>
+            <td><%= s.email %></td>
+            <td>
+              <form method="post" action="/admin/staff/<%= s.id %>" class="row" style="align-items:center">
+                <% var depts = (facility && facility.departments) ? facility.departments : [s.department]; %>
+                <select name="department" style="width:auto">
+                  <% if (depts.indexOf(s.department) === -1) { %><option value="<%= s.department %>" selected><%= s.department %></option><% } %>
+                  <% depts.forEach(function(d){ %><option value="<%= d %>" <%= d===s.department?'selected':'' %>><%= d %></option><% }); %>
+                </select>
+                <% ['Admin','Receptionist','Doctor','Pharmacy'].forEach(function(r){ %>
+                  <label style="display:flex;align-items:center;gap:4px;margin:0;font-size:12px">
+                    <input type="checkbox" name="roles" value="<%= r %>" style="width:auto" <%= s.roles.indexOf(r)>-1?'checked':'' %> /><%= r %>
+                  </label>
+                <% }); %>
+                <button class="secondary" type="submit">Save</button>
+              </form>
+            </td>
+            <td></td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Pending invitations</h2>
+    <% if (invites.length === 0) { %>
+      <p class="muted">No invitations yet.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>Email</th><th>Department</th><th>Roles</th><th>Status</th></tr></thead>
+        <tbody>
+          <% invites.forEach(function(i){ %>
+            <tr>
+              <td><%= i.email %></td>
+              <td><%= i.department %></td>
+              <td><%= i.roles.join(', ') %></td>
+              <td><span class="pill"><%= i.status %></span></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</main>
+<%- include('partials/foot') %>
