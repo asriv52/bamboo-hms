@@ -86,3 +86,49 @@ export function numericOtp(digits = 6): string {
 export function hmacCode(value: string): string {
   return crypto.createHmac('sha256', KEY).update(value).digest('hex');
 }
+
+// ---- Wearable de-identification ---------------------------------------------
+//
+// Wearable data is stored under a RANDOM pseudonym. A pseudonym is not derived
+// from any identifier, so it cannot be reversed by hashing candidate patient
+// ids. The only way back to the patient ("inverse" lookup) is the
+// re-identification vault, which is sealed with a separate key
+// (WEARABLE_REID_KEY) and only opened through the access-controlled service.
+
+const REID_KEY = crypto.createHash('sha256').update(config.wearableReidKey).digest();
+
+/** A new random subject pseudonym, e.g. WR-9F2C4A7E1B0D6C3A5E8F1A2B. */
+export function randomPseudonym(): string {
+  return `WR-${crypto.randomBytes(12).toString('hex').toUpperCase()}`;
+}
+
+/** Keyed one-way index for the vault (forward lookup without storing the id in clear). */
+export function reidIndex(value: string): string {
+  return crypto.createHmac('sha256', REID_KEY).update(value).digest('hex');
+}
+
+/** Seal a value into the re-identification vault (AES-256-GCM, vault key). */
+export function sealReid(plain: string): string {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', REID_KEY, iv);
+  const enc = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
+  return `${iv.toString('base64')}.${cipher.getAuthTag().toString('base64')}.${enc.toString('base64')}`;
+}
+
+/** Open a vault value. Returns null when tampered or sealed with another key. */
+export function openReid(stored: string): string | null {
+  const [ivB64, tagB64, dataB64] = stored.split('.');
+  if (!ivB64 || !tagB64 || !dataB64) return null;
+  try {
+    const decipher = crypto.createDecipheriv('aes-256-gcm', REID_KEY, Buffer.from(ivB64, 'base64'));
+    decipher.setAuthTag(Buffer.from(tagB64, 'base64'));
+    return Buffer.concat([decipher.update(Buffer.from(dataB64, 'base64')), decipher.final()]).toString('utf8');
+  } catch {
+    return null;
+  }
+}
+
+/** SHA-256 hex digest (e.g. to pin the exact consent text a patient signed). */
+export function sha256Hex(value: string): string {
+  return crypto.createHash('sha256').update(value, 'utf8').digest('hex');
+}

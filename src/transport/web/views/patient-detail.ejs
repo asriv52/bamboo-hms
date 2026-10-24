@@ -112,6 +112,45 @@
         </div>
 
         <div class="card">
+          <h2 style="margin-top:0">Wearable data (WHOOP)</h2>
+          <% var w = (typeof wearables !== 'undefined') ? wearables : null; %>
+          <% if (!w) { %>
+            <p class="muted">This patient has not consented to share wearable data.</p>
+          <% } else if (w.observations.length === 0) { %>
+            <p class="muted">Consent on file (research code <span class="code" style="letter-spacing:0"><%= w.pseudonym %></span>), but no data has been synced yet.</p>
+          <% } else {
+               var a = w.averages7d;
+               var f = function(x, u){ return (x === null || x === undefined) ? '—' : x + (u || ''); };
+          %>
+            <p class="muted">Source: <%= w.source %> · last sync <%= utc(w.lastSyncedAt) %> · research code <span class="code" style="letter-spacing:0"><%= w.pseudonym %></span></p>
+            <div class="row">
+              <div class="stat"><div class="n"><%= f(a.restingHr) %></div><div class="muted">Resting HR (bpm, 7-day avg)</div></div>
+              <div class="stat"><div class="n"><%= f(a.hrvMs) %></div><div class="muted">HRV (ms)</div></div>
+              <div class="stat"><div class="n"><%= a.systolicBp ? Math.round(a.systolicBp) + '/' + Math.round(a.diastolicBp) : '—' %></div><div class="muted">Blood pressure</div></div>
+              <div class="stat"><div class="n"><%= a.sleepTotalMin ? (a.sleepTotalMin / 60).toFixed(1) + 'h' : '—' %></div><div class="muted">Sleep per night</div></div>
+            </div>
+            <div style="overflow-x:auto">
+              <table style="font-size:13px">
+                <thead><tr><th>Date</th><th>RHR</th><th>Avg/Max HR</th><th>HRV</th><th>SpO2</th><th>BP</th><th>Resp</th><th>Sleep</th><th>Deep/REM</th><th>Recovery</th><th>Strain</th></tr></thead>
+                <tbody>
+                  <% w.observations.forEach(function(o){ %>
+                    <tr>
+                      <td><%= o.observedOn %></td><td><%= f(o.restingHr) %></td><td><%= f(o.avgHr) %>/<%= f(o.maxHr) %></td>
+                      <td><%= f(o.hrvMs, ' ms') %></td><td><%= f(o.spo2Pct, '%') %></td>
+                      <td><%= o.systolicBp ? o.systolicBp + '/' + o.diastolicBp : '—' %></td><td><%= f(o.respiratoryRate) %></td>
+                      <td><%= o.sleepTotalMin !== null ? Math.floor(o.sleepTotalMin/60) + 'h ' + (o.sleepTotalMin%60) + 'm' : '—' %></td>
+                      <td><%= f(o.sleepDeepMin) %>/<%= f(o.sleepRemMin) %> min</td>
+                      <td><%= f(o.recoveryScore, '%') %></td><td><%= f(o.strain) %></td>
+                    </tr>
+                  <% }); %>
+                </tbody>
+              </table>
+            </div>
+            <p class="muted">Consumer wearable data, not a diagnostic device. Live WHOOP data has no blood pressure.</p>
+          <% } %>
+        </div>
+
+        <div class="card">
           <h2 style="margin-top:0">Share with care team</h2>
           <form method="post" action="/patients/<%= p.id %>/assign-technician" class="row" style="align-items:flex-end">
             <div style="flex:2">

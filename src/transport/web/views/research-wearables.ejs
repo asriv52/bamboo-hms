@@ -1,0 +1,55 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<%
+  function v(x) { return (x === null || x === undefined) ? '' : x; }
+%>
+<main>
+  <h1>Wearable research data (de-identified)</h1>
+  <p class="muted">WHOOP data from patients who opted in to research. Each subject is a random code; calendar dates are replaced by a day number counted from the subject's first day. No names, emails, patient ids, or WHOOP ids are included.</p>
+
+  <div class="card">
+    <div class="row" style="align-items:center">
+      <div class="stat"><div class="n"><%= subjects %></div><div class="muted">Subjects</div></div>
+      <div class="stat"><div class="n"><%= totalRows %></div><div class="muted">Subject-days</div></div>
+      <span class="spacer" style="flex:1"></span>
+      <a class="btn" href="/research/wearables.csv">Download CSV for ML</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Dataset preview<%= totalRows > rows.length ? ' (first ' + rows.length + ' rows)' : '' %></h2>
+    <% if (rows.length === 0) { %>
+      <p class="muted">No research data yet.</p>
+    <% } else { %>
+      <div style="overflow-x:auto">
+        <table style="font-size:13px">
+          <thead><tr><th>Subject</th><th>Day</th><th>RHR</th><th>Avg HR</th><th>HRV</th><th>SpO2</th><th>BP</th><th>Sleep min</th><th>Deep</th><th>REM</th><th>Recovery</th><th>Strain</th></tr></thead>
+          <tbody>
+            <% rows.forEach(function(r){ %>
+              <tr>
+                <td><span class="code" style="letter-spacing:0"><%= r.subject %></span></td><td><%= r.dayIndex %></td>
+                <td><%= v(r.restingHr) %></td><td><%= v(r.avgHr) %></td><td><%= v(r.hrvMs) %></td><td><%= v(r.spo2Pct) %></td>
+                <td><%= r.systolicBp ? r.systolicBp + '/' + r.diastolicBp : '' %></td>
+                <td><%= v(r.sleepTotalMin) %></td><td><%= v(r.sleepDeepMin) %></td><td><%= v(r.sleepRemMin) %></td>
+                <td><%= v(r.recoveryScore) %></td><td><%= v(r.strain) %></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Identify a research subject</h2>
+    <p class="muted">If a model flags a subject, you can look up who it is only when that patient is already under your care. Every lookup, allowed or denied, is recorded with your reason.</p>
+    <form method="post" action="/research/wearables/reidentify">
+      <label for="pseudonym">Research code *</label>
+      <input id="pseudonym" type="text" name="pseudonym" required placeholder="WR-…" pattern="[Ww][Rr]-[0-9A-Fa-f]{24}" />
+      <label for="reason">Clinical reason *</label>
+      <input id="reason" type="text" name="reason" required minlength="10" placeholder="e.g. Model flagged sustained HRV drop; arrange follow-up" />
+      <div style="margin-top:10px"><button type="submit">Identify subject</button></div>
+    </form>
+  </div>
+</main>
+<%- include('partials/foot') %>

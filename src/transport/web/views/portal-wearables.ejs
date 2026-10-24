@@ -1,0 +1,112 @@
+<%- include('partials/head') %>
+<%- include('partials/portal-nav') %>
+<%
+  function v(x, unit) { return (x === null || x === undefined) ? '—' : (x + (unit || '')); }
+  function hm(min) { if (min === null || min === undefined) return '—'; return Math.floor(min / 60) + 'h ' + (min % 60) + 'm'; }
+  function bp(o) { return (o.systolicBp && o.diastolicBp) ? (o.systolicBp + '/' + o.diastolicBp) : '—'; }
+  var c = view.consent, conn = view.connection;
+%>
+<main>
+  <h1>Wearable data (WHOOP)</h1>
+  <p class="muted">Share your WHOOP heart rate, sleep, and recovery data with the doctors treating you. Your data is stored under a random code, never with your name.</p>
+
+  <div class="card">
+    <div class="row">
+      <div class="stat"><div class="n"><%= c ? '✓' : '1' %></div><div class="muted">Sign consent</div></div>
+      <div class="stat"><div class="n"><%= conn ? '✓' : '2' %></div><div class="muted">Connect WHOOP</div></div>
+      <div class="stat"><div class="n"><%= conn && conn.lastSyncedAt ? '✓' : '3' %></div><div class="muted">Data synced</div></div>
+    </div>
+  </div>
+
+  <% if (!c) { %>
+    <div class="card">
+      <h2 style="margin-top:0">Consent to share wearable data</h2>
+      <p class="muted">Version: <%= view.consentVersion %>. Please read carefully.</p>
+      <ol>
+        <% view.consentText.forEach(function(p){ %><li style="margin-bottom:8px"><%= p %></li><% }); %>
+      </ol>
+      <form method="post" action="/portal/wearables/consent">
+        <label style="display:flex;gap:8px;align-items:flex-start;color:var(--fg);font-size:14px">
+          <input type="checkbox" name="agree" required style="width:auto;margin-top:3px" />
+          <span>I have read this consent and agree to share my WHOOP data with the doctors treating me, as described above.</span>
+        </label>
+        <label style="display:flex;gap:8px;align-items:flex-start;color:var(--fg);font-size:14px">
+          <input type="checkbox" name="allowResearch" style="width:auto;margin-top:3px" />
+          <span><b>Optional:</b> also include my de-identified data in the research dataset used to train machine-learning models.</span>
+        </label>
+        <label for="signatureName">Type your full name as your signature *</label>
+        <input id="signatureName" type="text" name="signatureName" autocomplete="name" required placeholder="<%= patient.name %>" />
+        <div style="margin-top:12px"><button type="submit">Sign consent</button></div>
+      </form>
+    </div>
+  <% } else { %>
+    <div class="card">
+      <h2 style="margin-top:0">Your consent</h2>
+      <p>Signed by <b><%= c.signatureName %></b> on <%= utc(c.signedAt) %> (<%= c.consentVersion %>).</p>
+      <p>Shared with your treating doctors: <b>Yes</b> &nbsp; Research (de-identified): <b><%= c.allowResearch ? 'Yes' : 'No' %></b></p>
+      <p class="muted">Consent fingerprint: <span class="code"><%= c.consentTextSha256.slice(0, 16) %></span></p>
+      <details>
+        <summary style="cursor:pointer">Change my research choice</summary>
+        <form method="post" action="/portal/wearables/consent" style="margin-top:8px">
+          <input type="hidden" name="agree" value="on" />
+          <label style="display:flex;gap:8px;align-items:flex-start;color:var(--fg);font-size:14px">
+            <input type="checkbox" name="allowResearch" <%= c.allowResearch ? 'checked' : '' %> style="width:auto;margin-top:3px" />
+            <span>Include my de-identified data in the research dataset.</span>
+          </label>
+          <label for="resign">Type your full name to sign again *</label>
+          <input id="resign" type="text" name="signatureName" required />
+          <div style="margin-top:10px"><button type="submit" class="secondary">Save choice</button></div>
+        </form>
+      </details>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0">WHOOP connection</h2>
+      <% if (!conn) { %>
+        <p class="muted">
+          <% if (view.liveWhoopAvailable) { %>You will be sent to WHOOP to approve read-only access to recovery, sleep, and cycle data. We never request your WHOOP profile.
+          <% } else { %>Demo mode: this server has no WHOOP app credentials, so a simulated WHOOP with synthetic data is connected instead.<% } %>
+        </p>
+        <form method="post" action="/portal/wearables/connect">
+          <button type="submit"><%= view.liveWhoopAvailable ? 'Connect WHOOP' : 'Connect demo WHOOP' %></button>
+        </form>
+      <% } else { %>
+        <p>Connected <%= conn.mode === 'simulated' ? '(simulated demo device)' : 'to WHOOP' %> on <%= utc(conn.connectedAt) %>. Last sync: <%= utc(conn.lastSyncedAt) %>.</p>
+        <form method="post" action="/portal/wearables/sync"><button type="submit">Sync now</button></form>
+      <% } %>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0">Your last 7 days</h2>
+      <% if (view.recent.length === 0) { %>
+        <p class="muted">No data yet. Connect and sync your WHOOP.</p>
+      <% } else { %>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr><th>Date</th><th>Resting HR</th><th>Avg HR</th><th>HRV</th><th>SpO2</th><th>Blood pressure</th><th>Sleep</th><th>Deep</th><th>REM</th><th>Recovery</th></tr></thead>
+            <tbody>
+              <% view.recent.forEach(function(o){ %>
+                <tr>
+                  <td><%= o.observedOn %></td><td><%= v(o.restingHr, ' bpm') %></td><td><%= v(o.avgHr, ' bpm') %></td>
+                  <td><%= v(o.hrvMs, ' ms') %></td><td><%= v(o.spo2Pct, '%') %></td><td><%= bp(o) %></td>
+                  <td><%= hm(o.sleepTotalMin) %></td><td><%= hm(o.sleepDeepMin) %></td><td><%= hm(o.sleepRemMin) %></td>
+                  <td><%= v(o.recoveryScore, '%') %></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+        <p class="muted">WHOOP does not share blood pressure through its public API; "—" means no reading was available.</p>
+      <% } %>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0">Withdraw consent</h2>
+      <p class="muted">Stops collection, disconnects WHOOP, deletes all your stored wearable data, and destroys the key that links your research code to you. This cannot be undone.</p>
+      <form method="post" action="/portal/wearables/withdraw" onsubmit="return confirm('Withdraw consent and delete your wearable data?');">
+        <button type="submit" class="secondary">Withdraw and delete my data</button>
+      </form>
+    </div>
+  <% } %>
+</main>
+<%- include('partials/foot') %>

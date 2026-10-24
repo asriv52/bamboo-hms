@@ -314,6 +314,77 @@ export function initSchema(): void {
       start_time TEXT NOT NULL,       -- 'HH:MM' UTC
       end_time TEXT NOT NULL
     );
+
+    -- ---- Wearables (WHOOP) -------------------------------------------------
+    -- Written consent. This is the identifiable legal record of what the patient
+    -- agreed to; the wearable measurements themselves live elsewhere, keyed only
+    -- by a random pseudonym.
+    CREATE TABLE IF NOT EXISTS wearable_consents (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      patient_id INTEGER NOT NULL REFERENCES patients(id),
+      provider TEXT NOT NULL,             -- 'WHOOP'
+      consent_version TEXT NOT NULL,
+      consent_text_sha256 TEXT NOT NULL,  -- pins the exact text that was signed
+      signature_name TEXT NOT NULL,       -- typed legal name, encrypted at rest
+      share_with_doctors INTEGER NOT NULL,
+      allow_research INTEGER NOT NULL,    -- de-identified ML dataset opt-in
+      signed_at TEXT NOT NULL,
+      withdrawn_at TEXT
+    );
+
+    -- OAuth connection to the wearable vendor. Tokens are encrypted at rest.
+    CREATE TABLE IF NOT EXISTS wearable_connections (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      patient_id INTEGER NOT NULL UNIQUE REFERENCES patients(id),
+      provider TEXT NOT NULL,             -- 'WHOOP'
+      mode TEXT NOT NULL,                 -- 'whoop' (live API) | 'simulated'
+      access_token TEXT,                  -- encrypted at rest
+      refresh_token TEXT,                 -- encrypted at rest
+      token_expires_at TEXT,
+      connected_at TEXT NOT NULL,
+      last_synced_at TEXT
+    );
+
+    -- Re-identification vault: random pseudonym <-> patient. The patient id is
+    -- never stored in clear: patient_index is a keyed HMAC (forward lookup) and
+    -- patient_ref is AES-GCM sealed with WEARABLE_REID_KEY (inverse lookup).
+    CREATE TABLE IF NOT EXISTS wearable_reid_vault (
+      pseudonym TEXT PRIMARY KEY,
+      patient_index TEXT NOT NULL UNIQUE,
+      patient_ref TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    -- De-identified daily measurements. No patient id, name, email, vendor user
+    -- id, or vendor record id: only the pseudonym and the measurements.
+    CREATE TABLE IF NOT EXISTS wearable_observations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      pseudonym TEXT NOT NULL,
+      source TEXT NOT NULL,               -- 'WHOOP' | 'WHOOP (simulated)'
+      source_key TEXT NOT NULL,           -- keyed hash of the vendor record id (de-dup only)
+      observed_on TEXT NOT NULL,          -- YYYY-MM-DD (UTC)
+      resting_hr REAL,
+      avg_hr REAL,
+      max_hr REAL,
+      hrv_ms REAL,
+      spo2_pct REAL,
+      skin_temp_c REAL,
+      respiratory_rate REAL,
+      systolic_bp REAL,
+      diastolic_bp REAL,
+      sleep_total_min REAL,
+      sleep_light_min REAL,
+      sleep_deep_min REAL,
+      sleep_rem_min REAL,
+      sleep_awake_min REAL,
+      sleep_performance_pct REAL,
+      sleep_efficiency_pct REAL,
+      recovery_score REAL,
+      strain REAL,
+      ingested_at TEXT NOT NULL,
+      UNIQUE (pseudonym, source_key)
+    );
+    CREATE INDEX IF NOT EXISTS idx_wearable_obs_pseudonym ON wearable_observations (pseudonym, observed_on);
   `);
 
   runMigrations();

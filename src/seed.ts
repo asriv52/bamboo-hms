@@ -32,12 +32,29 @@ import {
 } from './core/opsStore';
 import { randomToken } from './core/crypto';
 import { saveBytes } from './core/fileStore';
+import {
+  createWearableConsent,
+  getOrCreatePseudonym,
+  markWearableSynced,
+  saveWearableConnection,
+  upsertWearableObservations,
+} from './core/wearableStore';
+import { simulateWhoopDailyRecords, SimulatedProfile } from './modules/wearables/whoopClient';
+import {
+  CONSENT_TEXT_SHA256,
+  CONSENT_VERSION,
+  WEARABLE_PROVIDER,
+} from './modules/wearables/wearableService';
 
 /**
  * Seed synthetic demo data and staff logins. NO REAL PII. Safe to re-run:
  * it clears the tables first (children before parents for foreign keys).
  */
 export const RESET_SQL = `
+    DELETE FROM wearable_observations;
+    DELETE FROM wearable_reid_vault;
+    DELETE FROM wearable_connections;
+    DELETE FROM wearable_consents;
     DELETE FROM charges;
     DELETE FROM patient_insurance;
     DELETE FROM insurance_plans;
@@ -327,6 +344,82 @@ function seed(): void {
     updateBedStatus(FACILITY, erBed.id, 'Occupied');
   }
 
+  // Wearables (WHOOP, simulated) — dummy EHR + wearable test data.
+  //   - Jordan: consent with research opt-in, 30 days, treated by Dr. Okafor.
+  //   - Mina: NOT enrolled, to demo the portal sign-up flow.
+  //   - A 12-patient synthetic cohort with distinct health profiles (normal,
+  //     athletic, hypertensive, poor sleep, low recovery), each with a matching
+  //     finalized visit + EHR entry. Most opted in to research; two share with
+  //     doctors only, so the ML dataset visibly excludes them. Cohort patients
+  //     are split between Dr. Okafor and Dr. Mensah so re-identification can be
+  //     tested both ways (allowed for your own patient, denied for the other's).
+  const WEARABLE_DAYS = 30;
+  const enrollWearable = (
+    patientId: number,
+    name: string,
+    allowResearch: boolean,
+    profile: SimulatedProfile = 'typical'
+  ) => {
+    createWearableConsent({
+      patientId, provider: WEARABLE_PROVIDER, consentVersion: CONSENT_VERSION,
+      consentTextSha256: CONSENT_TEXT_SHA256, signatureName: name,
+      shareWithDoctors: true, allowResearch,
+    });
+    const pseudonym = getOrCreatePseudonym(patientId);
+    saveWearableConnection({ patientId, provider: WEARABLE_PROVIDER, mode: 'simulated', accessToken: null, refreshToken: null, tokenExpiresAt: null });
+    upsertWearableObservations(pseudonym, 'WHOOP (simulated)', simulateWhoopDailyRecords(pseudonym, WEARABLE_DAYS, profile));
+    markWearableSynced(patientId);
+    return pseudonym;
+  };
+  const jordanCode = enrollWearable(jordan.id, jordan.name, true);
+
+  const PROFILE_EHR: Record<SimulatedProfile, { diagnosis: string; category: any; title: string; content: string }> = {
+    typical: { diagnosis: 'Routine check-up', category: 'General', title: 'Annual check-up', content: 'Healthy. Wearable vitals within normal range.' },
+    athletic: { diagnosis: 'Sports physical', category: 'Cardiac', title: 'Athletic bradycardia — benign', content: 'Low resting HR consistent with training. ECG normal sinus rhythm.' },
+    hypertensive: { diagnosis: 'Stage 1 hypertension', category: 'Cardiac', title: 'Hypertension — monitoring', content: 'Clinic BP 142/92. Lifestyle changes advised; review wearable BP trend in 4 weeks.' },
+    poorSleep: { diagnosis: 'Insomnia', category: 'General', title: 'Sleep complaint', content: 'Reports poor sleep for 2 months. Sleep hygiene counselling; review wearable sleep data.' },
+    lowRecovery: { diagnosis: 'Fatigue — under investigation', category: 'Laboratory', title: 'Fatigue work-up', content: 'Low HRV and recovery on wearable. CBC and thyroid panel ordered.' },
+  };
+  const cohort: Array<{ name: string; profile: SimulatedProfile; research: boolean; doctorId: number; blood: string }> = [
+    { name: 'Avery Cohort', profile: 'typical', research: true, doctorId: doctor.id, blood: 'O+' },
+    { name: 'Blake Cohort', profile: 'athletic', research: true, doctorId: doctor.id, blood: 'A+' },
+    { name: 'Casey Cohort', profile: 'hypertensive', research: true, doctorId: doctor.id, blood: 'B+' },
+    { name: 'Devon Cohort', profile: 'poorSleep', research: true, doctorId: doctor.id, blood: 'O-' },
+    { name: 'Emery Cohort', profile: 'lowRecovery', research: true, doctorId: doctor.id, blood: 'AB+' },
+    { name: 'Finley Cohort', profile: 'hypertensive', research: false, doctorId: doctor.id, blood: 'A-' },
+    { name: 'Gray Cohort', profile: 'typical', research: true, doctorId: doctor2.id, blood: 'O+' },
+    { name: 'Harper Cohort', profile: 'athletic', research: true, doctorId: doctor2.id, blood: 'B-' },
+    { name: 'Indigo Cohort', profile: 'hypertensive', research: true, doctorId: doctor2.id, blood: 'A+' },
+    { name: 'Jules Cohort', profile: 'poorSleep', research: true, doctorId: doctor2.id, blood: 'O+' },
+    { name: 'Kai Cohort', profile: 'lowRecovery', research: true, doctorId: doctor2.id, blood: 'AB-' },
+    { name: 'Logan Cohort', profile: 'typical', research: false, doctorId: doctor2.id, blood: 'B+' },
+  ];
+  const cohortCodes: Array<{ name: string; profile: SimulatedProfile; research: boolean; doctor: string; code: string }> = [];
+  cohort.forEach((c, i) => {
+    const n = String(i + 1).padStart(2, '0');
+    const p = createPatient({
+      email: `cohort.${c.name.split(' ')[0].toLowerCase()}@example.test`,
+      name: c.name,
+      phone: `+155501001${n}`,
+      nationalId: `SYN-C${n}`,
+      address: `${i + 20} Cohort Lane, Demo Town`,
+      bloodType: c.blood,
+      allergies: null,
+    });
+    const ehr = PROFILE_EHR[c.profile];
+    const visit = createVisit({ patientId: p.id, doctorId: c.doctorId, queueEntryId: null, facilityCode: FACILITY });
+    finalizeVisit(visit.id, ehr.diagnosis, 'Synthetic cohort visit for wearable / EHR testing.');
+    createEhrRecord({
+      patientId: p.id, visitId: visit.id, facilityCode: FACILITY, category: ehr.category,
+      title: ehr.title, content: ehr.content, authorId: c.doctorId,
+    });
+    const code = enrollWearable(p.id, p.name, c.research, c.profile);
+    cohortCodes.push({
+      name: c.name, profile: c.profile, research: c.research,
+      doctor: c.doctorId === doctor.id ? 'doctor@' : 'doctor2@', code,
+    });
+  });
+
   // eslint-disable-next-line no-console
   console.log('Seed complete. Demo logins (all password: demo1234):');
   for (const s of staff) {
@@ -336,6 +429,11 @@ function seed(): void {
   console.log(`Patient portal demo: open /portal, enter ${jordan.email}, use the OTP printed to this log.`);
   console.log(`Receipt codes for Jordan: ${v1.accessCode}, ${v2.accessCode}`);
   console.log(`Pharmacy token for Jordan's active plan: ${rx2.pharmacyLookupToken}`);
+  console.log(`WHOOP (simulated): Jordan enrolled, research code ${jordanCode}; Mina not enrolled (demo sign-up at /portal/wearables).`);
+  console.log(`Wearable cohort (${WEARABLE_DAYS} days each; research dataset at /research/wearables as a Doctor):`);
+  for (const c of cohortCodes) {
+    console.log(`  ${c.name.padEnd(14)} ${c.profile.padEnd(12)} treated by ${c.doctor.padEnd(9)} research=${c.research ? 'yes' : 'no '} ${c.code}`);
+  }
 }
 
 if (require.main === module) seed();

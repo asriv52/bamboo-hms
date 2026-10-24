@@ -1,57 +1,158 @@
-<header>
-  <span class="brand">Rural Clinic HMS</span>
-  <% if (typeof actor !== 'undefined' && actor) { %>
-    <nav>
-      <a href="/dashboard">Dashboard</a>
-      <% if (['Receptionist','Doctor'].includes(actor.activeRole)) { %>
-        <a href="/patients">Find patient</a>
-        <a href="/queue">Queue</a>
-      <% } %>
-      <% if (actor.activeRole === 'Receptionist') { %>
-        <a href="/patients/new">Register patient</a>
-        <a href="/availability">Availability</a>
-      <% } %>
-      <% if (actor.activeRole === 'Doctor') { %>
-        <a href="/doctor/appointments">Appointments</a>
-        <a href="/doctor/patients">My patients</a>
-        <a href="/medicines">Pharmacy stock</a>
-        <a href="/equipment">Equipment</a>
-      <% } %>
-      <% if (actor.activeRole === 'Admin') { %>
-        <a href="/admin/staff">Staff</a>
-        <a href="/admin/availability">Availability</a>
-        <a href="/admin/rooms">Rooms</a>
-        <a href="/equipment">Equipment</a>
-        <a href="/admin/accommodations">Accommodations</a>
-        <a href="/admin/consent">Consent</a>
-        <a href="/admin/directory">Directory</a>
-        <a href="/admin/facility">Facility</a>
-      <% } %>
-      <% if (actor.activeRole === 'Pharmacy') { %>
-        <a href="/pharmacy/lookup">Prescription lookup</a>
-        <a href="/pharmacy/stock">Stock &amp; prices</a>
-        <a href="/pharmacy/purchases">Purchases</a>
-        <a href="/pharmacy/billing">Billing</a>
-      <% } %>
-      <% if (actor.activeRole === 'Technician') { %>
-        <a href="/technician">Lab tests</a>
-        <a href="/technician/ehr">Specialty records</a>
-        <a href="/equipment">Equipment</a>
-      <% } %>
-      <a href="/directory">Hospitals &amp; pharmacies</a>
-      <% if (actor.activeRole !== 'Doctor') { %><a href="/insurance-plans">Insurance</a><% } %>
-      <a href="/notifications">Notifications</a>
-      <% if (typeof devMailbox !== 'undefined' && devMailbox) { %>
-        <a href="/mailbox">Mailbox</a>
-      <% } %>
-    </nav>
-    <span class="spacer"></span>
-    <span class="who"><%= actor.name %> · <%= actor.activeRole %> · <%= actor.facilityCode %></span>
-    <form method="post" action="/logout" style="margin:0">
-      <button class="secondary" type="submit">Sign out</button>
-    </form>
-  <% } %>
+<%
+  // Grey silhouette icons for the "More" menu (24x24, filled, currentColor).
+  var ICONS = {
+    person: '<path d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Zm0 2c-4.4 0-8 2.5-8 5.5V21h16v-1.5c0-3-3.6-5.5-8-5.5Z"/>',
+    personAdd: '<path d="M10 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Zm0 2c-4.4 0-8 2.5-8 5.5V21h12.5a6 6 0 0 1 .9-6.4A10 10 0 0 0 10 14Zm9 1v-3h-2v3h-3v2h3v3h2v-3h3v-2h-3Z"/>',
+    group: '<path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7.5 0a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM9 13c-4 0-7 2.2-7 5v2h14v-2c0-2.8-3-5-7-5Zm7.5 0c-.6 0-1.2 0-1.7.2A6 6 0 0 1 18 18v2h4v-2c0-2.8-2.5-5-5.5-5Z"/>',
+    queue: '<path d="M4 5h16v3H4V5Zm0 5.5h16v3H4v-3ZM4 16h16v3H4v-3Z"/>',
+    calendar: '<path d="M7 2h2v2h6V2h2v2h3v17H4V4h3V2Zm-1 8v9h12v-9H6Z"/>',
+    pill: '<path d="M8.5 3.5a5 5 0 0 1 7 0l5 5a5 5 0 0 1-7 7l-5-5a5 5 0 0 1 0-7Zm1.4 1.4a3 3 0 0 0 0 4.2l2.1 2.1 4.2-4.2-2.1-2.1a3 3 0 0 0-4.2 0Z"/><path d="M4 15a3 3 0 1 1 6 0v4a3 3 0 1 1-6 0v-4Z"/>',
+    building: '<path d="M4 21V3h11v5h5v13h-6v-4h-4v4H4Zm3-15v2h2V6H7Zm4 0v2h2V6h-2Zm-4 4v2h2v-2H7Zm4 0v2h2v-2h-2Zm6 0v2h2v-2h-2Zm-10 4v2h2v-2H7Zm10 0v2h2v-2h-2Z"/>',
+    shield: '<path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z"/>',
+    accessible: '<path d="M12 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm-1 2h2v5h4l3 6-1.8.9-2.4-4.9H11V8Zm-2 3.3A5 5 0 1 0 15.6 19l1.5 1.3A7 7 0 1 1 9 9.2v2.1Z"/>',
+    handshake: '<path d="M2 8l4-3 4 2 2-1 4 0 6 3v6l-3 1-5 4-2-1-2 1-4-3H2V8Zm7 1-2 2 5 4 1-1-4-5Z"/>',
+    flask: '<path d="M9 2h6v2h-1v5l5.5 9.5A2.3 2.3 0 0 1 17.5 22h-11a2.3 2.3 0 0 1-2-3.5L10 9V4H9V2Zm-.2 12h6.4l-2.2-3.8V4h-2v6.2L8.8 14Z"/>',
+    document: '<path d="M6 2h8l5 5v15H6V2Zm7 1.5V8h4.5L13 3.5ZM8.5 12v2h7v-2h-7Zm0 4v2h7v-2h-7Z"/>',
+    search: '<path d="M10 3a7 7 0 0 1 5.6 11.2l5.1 5.1-1.4 1.4-5.1-5.1A7 7 0 1 1 10 3Zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z"/>',
+    cart: '<path d="M2 3h3l2.7 11h10.6L21 6H7.2L6.6 4H2V3Zm7 15a2 2 0 1 1 0 4 2 2 0 0 1 0-4Zm8 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4Z"/>',
+    coins: '<path d="M12 2C7 2 3 3.8 3 6v12c0 2.2 4 4 9 4s9-1.8 9-4V6c0-2.2-4-4-9-4Zm0 2c4.4 0 7 1.4 7 2s-2.6 2-7 2-7-1.4-7-2 2.6-2 7-2Z"/>',
+    pulse: '<path d="M2 11h4.4l2.1-5 4 11 2.6-6H22v2h-5.6l-3.9 9-4-11L7.7 13H2v-2Z"/>',
+    bell: '<path d="M12 22a2.5 2.5 0 0 0 2.5-2.5h-5A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5.5-6.8V3a1.5 1.5 0 0 0-3 0v1.2A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/>',
+    mail: '<path d="M2 5h20v14H2V5Zm2 2.4V17h16V7.4l-8 5.3-8-5.3ZM5.3 7 12 11.4 18.7 7H5.3Z"/>',
+    gear: '<path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.9a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1L11 21h4l.4-2.9c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5-2.2-1.6ZM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"/>'
+  };
+  function icon(name) {
+    return '<svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">' + ICONS[name] + '</svg>';
+  }
+
+  // Pinned links stay in the bar. Only Dashboard, Availability, Rooms, and
+  // Equipment are pinned; each still only appears for roles that can use it.
+  // Everything else goes into the hamburger menu.
+  var pinned = [];
+  var more = [];
+  if (typeof actor !== 'undefined' && actor) {
+    var role = actor.activeRole;
+    pinned.push({ href: '/dashboard', label: 'Dashboard' });
+
+    if (role === 'Receptionist' || role === 'Doctor') {
+      more.push({ href: '/patients', label: 'Find patient', icon: 'search' });
+      more.push({ href: '/queue', label: 'Queue', icon: 'queue' });
+    }
+    if (role === 'Receptionist') {
+      pinned.push({ href: '/availability', label: 'Availability' });
+      more.push({ href: '/patients/new', label: 'Register patient', icon: 'personAdd' });
+    }
+    if (role === 'Doctor') {
+      pinned.push({ href: '/equipment', label: 'Equipment' });
+      more.push({ href: '/doctor/appointments', label: 'Appointments', icon: 'calendar' });
+      more.push({ href: '/doctor/patients', label: 'My patients', icon: 'group' });
+      more.push({ href: '/medicines', label: 'Pharmacy stock', icon: 'pill' });
+      more.push({ href: '/research/wearables', label: 'Wearable research data', icon: 'pulse' });
+    }
+    if (role === 'Admin') {
+      pinned.push({ href: '/admin/availability', label: 'Availability' });
+      pinned.push({ href: '/admin/rooms', label: 'Rooms' });
+      pinned.push({ href: '/equipment', label: 'Equipment' });
+      more.push({ href: '/admin/staff', label: 'Staff', icon: 'group' });
+      more.push({ href: '/admin/accommodations', label: 'Accommodations', icon: 'accessible' });
+      more.push({ href: '/admin/consent', label: 'Consent', icon: 'handshake' });
+      more.push({ href: '/admin/directory', label: 'Directory', icon: 'person' });
+      more.push({ href: '/admin/facility', label: 'Facility', icon: 'gear' });
+    }
+    if (role === 'Pharmacy') {
+      more.push({ href: '/pharmacy/lookup', label: 'Prescription lookup', icon: 'document' });
+      more.push({ href: '/pharmacy/stock', label: 'Stock & prices', icon: 'pill' });
+      more.push({ href: '/pharmacy/purchases', label: 'Purchases', icon: 'cart' });
+      more.push({ href: '/pharmacy/billing', label: 'Billing', icon: 'coins' });
+    }
+    if (role === 'Technician') {
+      pinned.push({ href: '/equipment', label: 'Equipment' });
+      more.push({ href: '/technician', label: 'Lab tests', icon: 'flask' });
+      more.push({ href: '/technician/ehr', label: 'Specialty records', icon: 'document' });
+    }
+
+    more.push({ href: '/directory', label: 'Hospitals & pharmacies', icon: 'building' });
+    if (role !== 'Doctor') more.push({ href: '/insurance-plans', label: 'Insurance', icon: 'shield' });
+    more.push({ href: '/notifications', label: 'Notifications', icon: 'bell' });
+    if (typeof devMailbox !== 'undefined' && devMailbox) {
+      more.push({ href: '/mailbox', label: 'Mailbox', icon: 'mail' });
+    }
+  }
+%>
+<% var signedIn = typeof actor !== 'undefined' && actor; %>
+<%
+  // The side menu is driven by this checkbox, so it opens and closes with no
+  // JavaScript. It sits before <header>, the drawer, and <main> so CSS sibling
+  // selectors can slide the drawer in and shift the page right.
+%>
+<% if (signedIn && more.length) { %>
+  <input type="checkbox" id="nav-toggle" class="nav-toggle-input" aria-controls="nav-drawer" aria-label="Show more pages" />
+<% } %>
+<header class="site-header">
+  <div class="header-left">
+    <% if (signedIn && more.length) { %>
+      <label for="nav-toggle" class="nav-toggle-btn" title="More pages" aria-hidden="true">
+        <svg class="hamburger" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M3 5h18v2.5H3V5Zm0 5.75h18v2.5H3v-2.5ZM3 16.5h18V19H3v-2.5Z"/>
+        </svg>
+      </label>
+    <% } %>
+    <% if (signedIn) { %>
+      <nav class="main-nav" aria-label="Main">
+        <% pinned.forEach(function(l){ %>
+          <a href="<%= l.href %>"><%= l.label %></a>
+        <% }); %>
+      </nav>
+    <% } %>
+  </div>
+
+  <a class="brand" href="<%= signedIn ? '/dashboard' : '/' %>">Rural Clinic HMS</a>
+
+  <div class="header-right">
+    <% if (signedIn) { %>
+      <span class="who"><%= actor.name %> · <%= actor.activeRole %> · <%= actor.facilityCode %></span>
+      <form method="post" action="/logout" style="margin:0">
+        <button class="secondary" type="submit">Sign out</button>
+      </form>
+    <% } %>
+  </div>
 </header>
+
+<% if (signedIn && more.length) { %>
+  <aside id="nav-drawer" class="nav-drawer" aria-label="More pages">
+    <div class="nav-drawer-head">
+      <span>More pages</span>
+      <label for="nav-toggle" class="nav-drawer-close" title="Close menu" aria-hidden="true">&times;</label>
+    </div>
+    <nav>
+      <% more.forEach(function(l){ %>
+        <a href="<%= l.href %>"><%- icon(l.icon) %><span><%= l.label %></span></a>
+      <% }); %>
+    </nav>
+  </aside>
+  <label for="nav-toggle" class="nav-backdrop" aria-hidden="true"></label>
+  <script>
+    (function () {
+      var toggle = document.getElementById('nav-toggle');
+      var wide = window.matchMedia('(min-width: 761px)');
+      // Remember the open/closed state between pages (wide screens only, where
+      // the menu sits beside the page instead of covering it).
+      try {
+        if (wide.matches && localStorage.getItem('navOpen') === '1') toggle.checked = true;
+      } catch (e) {}
+      toggle.addEventListener('change', function () {
+        try { localStorage.setItem('navOpen', toggle.checked ? '1' : '0'); } catch (e) {}
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && toggle.checked) {
+          toggle.checked = false;
+          toggle.dispatchEvent(new Event('change'));
+        }
+      });
+    })();
+  </script>
+<% } %>
+
 <% if (typeof notice !== 'undefined' && notice) { %>
-  <div style="max-width:860px;margin:16px auto 0;padding:0 20px"><div class="ok" role="status"><%= notice %></div></div>
+  <div class="page-notice"><div class="ok" role="status"><%= notice %></div></div>
 <% } %>

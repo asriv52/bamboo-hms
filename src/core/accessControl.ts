@@ -244,7 +244,10 @@ export type StaffFeature =
   | 'ehr.doctor'
   | 'ehr.technician'
   | 'medication_history.doctor'
-  | 'patient.insurance.set';
+  | 'patient.insurance.set'
+  | 'wearables.doctor'
+  | 'wearables.research'
+  | 'wearables.reidentify';
 
 const ALL_STAFF: Role[] = ['Admin', 'Receptionist', 'Doctor', 'Pharmacy', 'Technician'];
 
@@ -268,6 +271,12 @@ export const FEATURE_MATRIX: Record<StaffFeature, Role[]> = {
   'ehr.technician': ['Technician'],
   'medication_history.doctor': ['Doctor'],
   'patient.insurance.set': ['Receptionist'],
+  // Wearable (WHOOP) data: doctors only. Identified data additionally needs a
+  // care relationship (assertDoctorCanReadHistory); the research dataset is
+  // de-identified; re-identification needs a care relationship + a reason.
+  'wearables.doctor': ['Doctor'],
+  'wearables.research': ['Doctor'],
+  'wearables.reidentify': ['Doctor'],
 };
 
 export function canUseFeature(actor: Actor, feature: StaffFeature): boolean {

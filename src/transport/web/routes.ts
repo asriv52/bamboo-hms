@@ -68,6 +68,7 @@ import { listAssignableTechnicians, listEhrForDoctor } from '../../modules/ehr/e
 import { listBookableDoctors } from '../../modules/appointments/appointmentService';
 import { getInsuranceForReceptionist } from '../../modules/billing/billingService';
 import { getInsuranceMarketplace } from '../../modules/directory/directoryService';
+import { getWearablesForDoctor, WhoopApiError } from '../../modules/wearables/wearableService';
 import { actorFromSession, requireAuth, requireWebRole } from './middleware';
 
 export const router = Router();
@@ -90,6 +91,7 @@ export function friendly(err: unknown): { status: number; message: string } {
   if (err instanceof AccessDenied) return { status: 403, message: err.message };
   if (err instanceof PortalAccessError) return { status: 403, message: err.message };
   if (err instanceof AuthError) return { status: 401, message: err.message };
+  if (err instanceof WhoopApiError) return { status: 502, message: err.message };
   // Unknown: log the detail server-side, show a generic message to the user.
   // eslint-disable-next-line no-console
   console.error('[unhandled]', err);
@@ -397,6 +399,8 @@ router.get('/patients/:id', requireWebRole('Receptionist', 'Doctor'), (req, res)
         notice,
         // EHR, technician assignment, and peer grants need a qualifying relationship.
         ehr: summary.canReadHistory ? listEhrForDoctor(actor, id) : [],
+        // Wearable data: treating doctors only, and only with the patient's consent.
+        wearables: summary.canReadHistory ? getWearablesForDoctor(actor, id) : null,
         technicians: summary.canReadHistory ? listAssignableTechnicians(actor) : [],
         doctors: listBookableDoctors().filter((d) => d.id !== actor.userId),
         categories: EHR_CATEGORIES,
@@ -413,6 +417,7 @@ router.get('/patients/:id', requireWebRole('Receptionist', 'Doctor'), (req, res)
         registered: req.query.registered === '1',
         notice,
         ehr: [],
+        wearables: null,
         technicians: [],
         doctors: [],
         categories: EHR_CATEGORIES,

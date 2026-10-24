@@ -378,3 +378,72 @@ export interface Actor {
   email: string;
   name: string;
 }
+
+// ---- Wearables -------------------------------------------------------------
+
+export type WearableProvider = 'WHOOP';
+/** 'whoop' = live WHOOP API via OAuth; 'simulated' = synthetic demo data. */
+export type WearableMode = 'whoop' | 'simulated';
+
+export interface WearableConsent {
+  id: number;
+  patientId: number;
+  provider: WearableProvider;
+  consentVersion: string;
+  consentTextSha256: string;
+  signatureName: string;
+  shareWithDoctors: boolean;
+  allowResearch: boolean;
+  signedAt: string;
+  withdrawnAt: string | null;
+}
+
+export interface WearableConnection {
+  id: number;
+  patientId: number;
+  provider: WearableProvider;
+  mode: WearableMode;
+  accessToken: string | null;
+  refreshToken: string | null;
+  tokenExpiresAt: string | null;
+  connectedAt: string;
+  lastSyncedAt: string | null;
+}
+
+/** The measurement fields of one day of wearable data (all optional). */
+export interface WearableMetrics {
+  restingHr: number | null;
+  avgHr: number | null;
+  maxHr: number | null;
+  hrvMs: number | null;
+  spo2Pct: number | null;
+  skinTempC: number | null;
+  respiratoryRate: number | null;
+  systolicBp: number | null;
+  diastolicBp: number | null;
+  sleepTotalMin: number | null;
+  sleepLightMin: number | null;
+  sleepDeepMin: number | null;
+  sleepRemMin: number | null;
+  sleepAwakeMin: number | null;
+  sleepPerformancePct: number | null;
+  sleepEfficiencyPct: number | null;
+  recoveryScore: number | null;
+  strain: number | null;
+}
+
+export const WEARABLE_METRIC_KEYS: ReadonlyArray<keyof WearableMetrics> = [
+  'restingHr', 'avgHr', 'maxHr', 'hrvMs', 'spo2Pct', 'skinTempC', 'respiratoryRate',
+  'systolicBp', 'diastolicBp', 'sleepTotalMin', 'sleepLightMin', 'sleepDeepMin',
+  'sleepRemMin', 'sleepAwakeMin', 'sleepPerformancePct', 'sleepEfficiencyPct',
+  'recoveryScore', 'strain',
+];
+
+/** One de-identified day of wearable data, as stored. */
+export interface WearableObservation extends WearableMetrics {
+  id: number;
+  pseudonym: string;
+  source: string;
+  observedOn: string;
+  ingestedAt: string;
+}

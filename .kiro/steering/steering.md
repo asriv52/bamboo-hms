@@ -162,6 +162,7 @@ Every user class, regardless of role, has access to:
 - Current insurance information, coverage, and insurance billing.
 - Access grants: give a doctor time-limited access to their history, and revoke it at any time.
 - Visit receipts: each visit's receipt code, tests and results, and attachments.
+- Wearable data (WHOOP, `/portal/wearables`): sign a versioned written consent (typed legal name, separate optional research opt-in), connect WHOOP, sync, view own recent data, and withdraw at any time. Withdrawing deletes the data and the re-identification key.
 
 ### Receptionist
 The receptionist is a front-desk role focused on intake and visitor direction. Their
@@ -206,6 +207,11 @@ access is intentionally narrow — they are NOT a clinical or administrative rol
 - Equipment status.
 - Consultations: diagnosis, notes, prescriptions, recommended lab tests, attachments, and EHR entries by category.
 - Peer authorization: grant another doctor time-limited access to a patient under their care. Assign a specialty technician to a patient.
+- Wearable data (WHOOP) — **doctors only; no other staff class**:
+  - Identified wearable data on the patient page, only for patients under their care AND with an active wearable consent.
+  - The de-identified research (ML) dataset (`/research/wearables`): research opt-ins only, keyed by a random pseudonym, dates replaced by a per-subject day index, no names/emails/ids.
+  - Re-identification of a research pseudonym: only to a patient already under their care, with a stated clinical reason; every attempt is audited, and unknown codes and unrelated patients get the same denial.
+  - Storage rule: wearable measurements are stored only under the random pseudonym; the pseudonym → patient mapping lives in a vault sealed with a separate key (`WEARABLE_REID_KEY`).
 
 ### Technician
 - Patient EHR limited strictly to the technician's own specialty (see Technicians under Access Control Rules). A bone specialist gets only bone EHR data and never any other category.

@@ -17,6 +17,24 @@ export const config = {
   publicBaseUrl: process.env.PUBLIC_BASE_URL || 'http://localhost:3000',
   piiEncryptionKey:
     process.env.PII_ENCRYPTION_KEY || 'dev-only-pii-key-change-me-please',
+  /**
+   * Separate key for the wearable re-identification vault. Kept apart from the
+   * PII key so someone holding the de-identified dataset plus the PII key still
+   * cannot map a pseudonym back to a patient.
+   */
+  wearableReidKey:
+    process.env.WEARABLE_REID_KEY || 'dev-only-wearable-reid-key-change-me',
+  /**
+   * WHOOP OAuth app credentials (developer.whoop.com). When the client id is
+   * missing, the wearable module runs in simulated mode with synthetic data.
+   */
+  whoop: {
+    clientId: process.env.WHOOP_CLIENT_ID || '',
+    clientSecret: process.env.WHOOP_CLIENT_SECRET || '',
+    redirectUri:
+      process.env.WHOOP_REDIRECT_URI ||
+      `${process.env.PUBLIC_BASE_URL || 'http://localhost:3000'}/portal/wearables/whoop/callback`,
+  },
   smtp: {
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT || 587),

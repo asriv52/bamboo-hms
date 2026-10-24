@@ -57,6 +57,17 @@ import {
   setAccommodationNeeds,
 } from '../../modules/portal/portalService';
 import { listMyPatients } from '../../modules/prescription/consultationService';
+import {
+  completeWhoopConnect,
+  getPatientWearableOverview,
+  getResearchDataset,
+  reidentifyResearchSubject,
+  researchDatasetToCsv,
+  signWearableConsent,
+  startWhoopConnect,
+  syncPatientWearables,
+  withdrawWearableConsent,
+} from '../../modules/wearables/wearableService';
 import { actorFromSession, requireWebRole } from './middleware';
 import { friendly } from './routes';
 
@@ -120,6 +131,22 @@ function renderSafe(res: Response, view: string, build: () => Record<string, unk
 function act(res: Response, back: string, notice: string, fn: () => void): void {
   try {
     fn();
+    const sep = back.includes('?') ? '&' : '?';
+    res.redirect(`${back}${sep}notice=${encodeURIComponent(notice)}`);
+  } catch (err) {
+    const { status, message } = friendly(err);
+    if (res.locals.actor) {
+      res.status(status).render('error', { title: 'Error', message, actor: res.locals.actor });
+    } else {
+      res.status(status).render('portal-error', { title: 'Error', message, patient: res.locals.patient ?? null });
+    }
+  }
+}
+
+/** Async variant of act(): for mutations that call an external API. */
+async function actAsync(res: Response, back: string, fn: () => Promise<string>): Promise<void> {
+  try {
+    const notice = await fn();
     const sep = back.includes('?') ? '&' : '?';
     res.redirect(`${back}${sep}notice=${encodeURIComponent(notice)}`);
   } catch (err) {
@@ -237,6 +264,61 @@ featureRouter.post('/portal/access/:id/revoke', requirePortal, (req, res) => {
   );
 });
 
+// ---- Patient portal: wearables (WHOOP) ---------------------------------------
+
+featureRouter.get('/portal/wearables', requirePortal, (req, res) => {
+  renderSafe(res, 'portal-wearables', () => ({
+    title: 'Wearable data',
+    view: getPatientWearableOverview(res.locals.patientId),
+  }));
+});
+
+featureRouter.post('/portal/wearables/consent', requirePortal, (req, res) => {
+  act(res, '/portal/wearables', 'Consent signed. You can now connect your WHOOP.', () =>
+    signWearableConsent(res.locals.patientId, req.body)
+  );
+});
+
+featureRouter.post('/portal/wearables/connect', requirePortal, async (req, res) => {
+  try {
+    const result = await startWhoopConnect(res.locals.patientId);
+    if (result.kind === 'redirect') {
+      // Hand off to WHOOP's own authorization screen; the callback finishes.
+      req.session.whoopOAuthState = result.state;
+      res.redirect(result.url);
+      return;
+    }
+    res.redirect(
+      `/portal/wearables?notice=${encodeURIComponent(`Demo WHOOP connected. ${result.synced} day(s) of data synced.`)}`
+    );
+  } catch (err) {
+    const { status, message } = friendly(err);
+    res.status(status).render('portal-error', { title: 'Error', message, patient: res.locals.patient ?? null });
+  }
+});
+
+featureRouter.get('/portal/wearables/whoop/callback', requirePortal, (req, res) => {
+  const expected = req.session.whoopOAuthState;
+  delete req.session.whoopOAuthState; // single use
+  void actAsync(res, '/portal/wearables', async () => {
+    const synced = await completeWhoopConnect(res.locals.patientId, req.query, expected);
+    return `WHOOP connected. ${synced} day(s) of data synced.`;
+  });
+});
+
+featureRouter.post('/portal/wearables/sync', requirePortal, (req, res) => {
+  void actAsync(res, '/portal/wearables', async () => {
+    const synced = await syncPatientWearables(res.locals.patientId);
+    return `Synced ${synced} day(s) of wearable data.`;
+  });
+});
+
+featureRouter.post('/portal/wearables/withdraw', requirePortal, (req, res) => {
+  act(res, '/portal/wearables', 'Consent withdrawn. Your wearable data and its link to you were deleted.', () =>
+    withdrawWearableConsent(res.locals.patientId)
+  );
+});
+
 // ---- Doctor ------------------------------------------------------------------
 
 featureRouter.get('/doctor/appointments', requireWebRole('Doctor'), (req, res) => {
@@ -253,6 +335,43 @@ featureRouter.get('/doctor/patients', requireWebRole('Doctor'), (req, res) => {
     actor: res.locals.actor,
     rows: listMyPatients(res.locals.actor),
   }));
+});
+
+// De-identified wearable research dataset (ML) + controlled re-identification.
+featureRouter.get('/research/wearables', requireWebRole('Doctor'), (req, res) => {
+  renderSafe(res, 'research-wearables', () => {
+    const data = getResearchDataset(res.locals.actor);
+    return {
+      title: 'Wearable research data',
+      actor: res.locals.actor,
+      subjects: data.subjects,
+      totalRows: data.rows.length,
+      rows: data.rows.slice(0, 100),
+    };
+  });
+});
+
+featureRouter.get('/research/wearables.csv', requireWebRole('Doctor'), (req, res) => {
+  try {
+    const csv = researchDatasetToCsv(getResearchDataset(res.locals.actor).rows);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="wearable-research-deidentified.csv"');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(csv);
+  } catch (err) {
+    const { status, message } = friendly(err);
+    res.status(status).render('error', { title: 'Error', message, actor: res.locals.actor });
+  }
+});
+
+featureRouter.post('/research/wearables/reidentify', requireWebRole('Doctor'), (req, res) => {
+  try {
+    const patientId = reidentifyResearchSubject(res.locals.actor, req.body.pseudonym, req.body.reason);
+    res.redirect(`/patients/${patientId}?notice=${encodeURIComponent('Research code matched a patient under your care. This lookup was recorded.')}`);
+  } catch (err) {
+    const { status, message } = friendly(err);
+    res.status(status).render('error', { title: 'Error', message, actor: res.locals.actor });
+  }
 });
 
 featureRouter.post('/patients/:id/ehr', requireWebRole('Doctor'), (req, res) => {

@@ -12,6 +12,8 @@ declare module 'express-session' {
     activeRole?: Role;
     /** Patient-portal session: the patient id this portal session may read. */
     portalPatientId?: number;
+    /** OAuth `state` for an in-flight WHOOP connect, checked on callback. */
+    whoopOAuthState?: string;
   }
 }
 
