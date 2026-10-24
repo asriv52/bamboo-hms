@@ -40,6 +40,7 @@ import {
   upsertWearableObservations,
 } from './core/wearableStore';
 import { simulateWhoopDailyRecords, SimulatedProfile } from './modules/wearables/whoopClient';
+import { askAssistant, ensureAssistantIndex } from './modules/assistant/assistantService';
 import {
   CONSENT_TEXT_SHA256,
   CONSENT_VERSION,
@@ -51,6 +52,7 @@ import {
  * it clears the tables first (children before parents for foreign keys).
  */
 export const RESET_SQL = `
+    DELETE FROM assistant_requests;
     DELETE FROM wearable_observations;
     DELETE FROM wearable_reid_vault;
     DELETE FROM wearable_connections;
@@ -419,6 +421,19 @@ function seed(): void {
       doctor: c.doctorId === doctor.id ? 'doctor@' : 'doctor2@', code,
     });
   });
+
+  // Help assistant: build the retrieval index, then ask a few questions no
+  // feature covers so the admin "Assistant requests" page has sample entries.
+  ensureAssistantIndex();
+  for (const [role, q] of [
+    ['Patient', 'can I video call my doctor'],
+    ['Patient', 'order food delivery to my room'],
+    ['Doctor', 'dispatch an ambulance to a patient'],
+    ['Receptionist', 'print a visitor badge'],
+    ['Visitor', 'where do I park my car'],
+  ] as const) {
+    askAssistant(role, { q });
+  }
 
   // eslint-disable-next-line no-console
   console.log('Seed complete. Demo logins (all password: demo1234):');

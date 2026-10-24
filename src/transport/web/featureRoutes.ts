@@ -68,6 +68,8 @@ import {
   syncPatientWearables,
   withdrawWearableConsent,
 } from '../../modules/wearables/wearableService';
+import { askAssistant, getAssistantRequestLog } from '../../modules/assistant/assistantService';
+import { AssistantRole } from '../../modules/assistant/knowledgeBase';
 import { actorFromSession, requireWebRole } from './middleware';
 import { friendly } from './routes';
 
@@ -158,6 +160,26 @@ async function actAsync(res: Response, back: string, fn: () => Promise<string>):
     }
   }
 }
+
+// ---- Help assistant (everyone, including signed-out visitors) ---------------
+
+/** The user class comes from the server-side session only, never the client. */
+function assistantRoleFrom(req: Request): AssistantRole {
+  const actor = actorFromSession(req);
+  if (actor) return actor.activeRole;
+  if (req.session.portalPatientId) return 'Patient';
+  return 'Visitor';
+}
+
+featureRouter.post('/assistant/ask', (req, res) => {
+  try {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(askAssistant(assistantRoleFrom(req), req.body ?? {}));
+  } catch (err) {
+    const { status, message } = friendly(err);
+    res.status(status).json({ error: message });
+  }
+});
 
 // ---- Shared baseline (ALL users) ---------------------------------------------
 
@@ -526,6 +548,14 @@ featureRouter.get('/admin/consent', requireWebRole('Admin'), (req, res) => {
     title: 'Consent records',
     actor: res.locals.actor,
     records: listConsentRecords(res.locals.actor),
+  }));
+});
+
+featureRouter.get('/admin/assistant-requests', requireWebRole('Admin'), (req, res) => {
+  renderSafe(res, 'admin-assistant-requests', () => ({
+    title: 'Assistant requests',
+    actor: res.locals.actor,
+    log: getAssistantRequestLog(res.locals.actor),
   }));
 });
 

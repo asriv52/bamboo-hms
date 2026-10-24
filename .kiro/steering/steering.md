@@ -147,6 +147,7 @@ authorization grants, and specialty scope for technicians).
 
 ### ALL users (shared baseline)
 Every user class, regardless of role, has access to:
+- **Help assistant** (chat button on every page, including signed-out visitors). It answers only from the knowledge base for the caller's own class (`src/modules/assistant/knowledgeBase.ts`), resolved from the server session, never from the client. It uses a locally trained word2vec retrieval index (no LLM). Questions it cannot answer for that class are logged, redacted, for Admin review. **When you add or change a feature, add or update its knowledge-base entry too.**
 - Login with a unique ID. Staff sign in with email + password and pick an active role. Patients sign in to the patient portal (`/portal`) with their email + an emailed one-time code.
 - Insurance marketplace information (plans, coverage options available in the market) — **every class except Doctor**. Doctors do not need market insurance data for clinical work.
 - Location and operating hours of hospitals and pharmacies.
@@ -191,6 +192,7 @@ access is intentionally narrow — they are NOT a clinical or administrative rol
 - Consent records between patients and doctors, shown **de-identified** (patient reference number, doctor, scope, status, expiry — no patient name or contact).
 - Per-department daily activity counts (aggregate only).
 - Staff invitations and management; facility profile.
+- Help-assistant improvement log (`/admin/assistant-requests`): unanswered questions per user class, redacted of emails, phone numbers, codes, and long numbers.
 - NOTE: Live bed occupancy (who is in which bed/room) is owned by the **Receptionist** role via the availability seat-map, not Admin. Admin manages staff, facility configuration, equipment inventory, rooms, and consent — not the live bed-occupancy board.
 
 ### Pharmacy
