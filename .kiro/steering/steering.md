@@ -82,6 +82,16 @@ These rules are **non-negotiable** and must be enforced at the data layer, not j
 - Read: any hospital's public profile — specialties, available doctors, estimated costs, location, equipment, treatment modes.
 - Cannot read: another patient's data. Cannot read internal hospital operational data.
 
+### Receptionists
+- Read/Write: bed and room availability/status and equipment status, scoped to their facility.
+- Read: visit assignment and location only — which doctor is seeing which patient, and at which bed/room/equipment — so arriving visitors can be directed correctly.
+- Write: assign a patient + doctor to an available bed (records location/assignment only, never clinical content), and remove an occupant from a bed.
+- Freeing a bed (setting it Available, or removing its occupant) detaches the patient and doctor from that bed so they disappear from the room, but the patient record remains in the database. Receptionists NEVER delete patient or staff records.
+- Read: a building-wide distribution of patients across wards/rooms, so facility load is visible at a glance.
+- Write: create a new patient record ONLY when no matching patient already exists in the system; otherwise check in the existing patient. Must not create duplicate patient records.
+- Cannot read: any clinical content (diagnoses, notes, medications, lab results, EHR), billing, insurance, consent records, or staff HR data. The receptionist sees the *location and assignment* of a visit, never its medical content.
+- Facility-scoped: a receptionist never sees beds, equipment, or visits belonging to another facility.
+
 ### Doctors / Specialists
 - Read/Write: clinical records for patients currently under their care (active visit exists at their facility).
 - Read: a patient's prior visit summaries and medication history **only** when at least one of these conditions is met:
@@ -140,13 +150,32 @@ Every user class, regardless of role, has access to:
 - Appointment scheduler (book, view, reschedule, cancel own appointments).
 - Current insurance information, coverage, and insurance billing.
 
+### Receptionist
+The receptionist is a front-desk role focused on intake and visitor direction. Their
+access is intentionally narrow — they are NOT a clinical or administrative role.
+- Check in people who arrive at the facility.
+- Register a person as a new patient ONLY when they have never been a patient in this
+  system before. If a matching patient already exists, the receptionist checks them in
+  rather than creating a duplicate record.
+- Bed / room availability and status (view and update occupancy status).
+- Equipment availability and status.
+- Doctor cases / visits: which doctor is seeing which patient, and where. This lets the
+  receptionist direct arriving visitors to the correct bed / room.
+- Occupancy directory: which patient and which doctor are at which bed, room, or piece of
+  equipment, so visitors can be pointed to the right place.
+- Receptionists have NO access to: patient EHR / clinical history, billing, insurance,
+  staff HR management, facility configuration, or consent records. They see visit
+  *location and assignment* information only — not diagnoses, notes, medications, or
+  test results.
+
 ### Hospital / Admin
 - Staff availability (doctors, technicians, support staff schedules).
 - Identifiable information for patients, insurance, doctors, pharmacies, and technicians — scoped to their facility and to a qualifying visit relationship per the Access Control Rules.
-- Room availability.
 - Accommodation availability at their facility.
-- Equipment status.
 - Consent records between patients and doctors.
+- NOTE: Bed/room availability and equipment status are owned by the **Receptionist** role,
+  not Admin. Admin manages staff, facility configuration, and consent — not the live
+  bed/equipment occupancy board.
 
 ### Pharmacy
 - Stock information and pricing.

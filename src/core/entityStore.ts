@@ -2,6 +2,10 @@ import { db, nowUtc } from './db';
 import { decryptPII, encryptPII, hashPassword, shortCode } from './crypto';
 import {
   Attachment,
+  Bed,
+  BedStatus,
+  Equipment,
+  EquipmentStatus,
   Facility,
   LabTest,
   LabTestPriority,
@@ -172,6 +176,12 @@ export function searchPatients(query: string): Patient[] {
     );
 }
 
+/** All patients, newest first. Small single-clinic dataset. */
+export function listPatients(): Patient[] {
+  const rows = db.prepare('SELECT * FROM patients ORDER BY id DESC').all();
+  return rows.map(rowToPatient);
+}
+
 export function countPatientsRegisteredToday(datePrefix: string): number {
   const row = db
     .prepare(
@@ -293,6 +303,7 @@ function rowToVisit(row: any): Visit {
     patientId: row.patient_id,
     doctorId: row.doctor_id,
     queueEntryId: row.queue_entry_id,
+    bedId: row.bed_id ?? null,
     facilityCode: row.facility_code,
     accessCode: row.access_code,
     diagnosis: row.diagnosis,
@@ -307,6 +318,7 @@ export function createVisit(input: {
   doctorId: number;
   queueEntryId: number | null;
   facilityCode: string;
+  bedId?: number | null;
 }): Visit {
   // Generate a unique short access code. Collisions are astronomically unlikely
   // but we retry a few times to be safe.
@@ -316,18 +328,76 @@ export function createVisit(input: {
   }
   const info = db
     .prepare(
-      `INSERT INTO visits (patient_id, doctor_id, queue_entry_id, facility_code, access_code, status, created_at)
-       VALUES (?, ?, ?, ?, ?, 'Open', ?)`
+      `INSERT INTO visits (patient_id, doctor_id, queue_entry_id, bed_id, facility_code, access_code, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'Open', ?)`
     )
     .run(
       input.patientId,
       input.doctorId,
       input.queueEntryId,
+      input.bedId ?? null,
       input.facilityCode,
       accessCode,
       nowUtc()
     );
   return getVisit(Number(info.lastInsertRowid))!;
+}
+
+/**
+ * Occupancy for every currently-OPEN visit at a facility that is assigned to a
+ * bed. Returns bed id + patient/doctor names only (location/assignment data —
+ * no clinical content). Patient names are decrypted; staff names are plaintext.
+ */
+export function listBedOccupancyByFacility(facilityCode: string): {
+  bedId: number;
+  visitId: number;
+  patientName: string;
+  doctorName: string;
+}[] {
+  const rows = db
+    .prepare(
+      `SELECT v.id as visit_id, v.bed_id as bed_id, v.patient_id as patient_id, s.name as doctor_name
+       FROM visits v
+       JOIN staff_users s ON s.id = v.doctor_id
+       WHERE v.facility_code = ? AND v.status = 'Open' AND v.bed_id IS NOT NULL`
+    )
+    .all(facilityCode) as any[];
+  return rows.map((r) => {
+    const patient = getPatientById(r.patient_id);
+    return {
+      bedId: r.bed_id as number,
+      visitId: r.visit_id as number,
+      patientName: patient ? patient.name : '(unknown)',
+      doctorName: (r.doctor_name as string) ?? '(unknown)',
+    };
+  });
+}
+
+/** The open visit currently occupying a bed at a facility, or null. */
+export function getOpenVisitByBed(facilityCode: string, bedId: number): Visit | null {
+  const row = db
+    .prepare(
+      `SELECT * FROM visits
+       WHERE facility_code = ? AND bed_id = ? AND status = 'Open'
+       ORDER BY id DESC LIMIT 1`
+    )
+    .get(facilityCode, bedId);
+  return row ? rowToVisit(row) : null;
+}
+
+/**
+ * Detach any open visit from a bed at this facility (frees the bed). The visit
+ * itself — and the patient — remain in the database; only the bed link clears.
+ * Returns the number of visits detached.
+ */
+export function clearBedOccupancy(facilityCode: string, bedId: number): number {
+  const info = db
+    .prepare(
+      `UPDATE visits SET bed_id = NULL
+       WHERE facility_code = ? AND bed_id = ? AND status = 'Open'`
+    )
+    .run(facilityCode, bedId);
+  return info.changes;
 }
 
 export function getVisit(id: number): Visit | null {
@@ -522,6 +592,133 @@ export function upsertFacility(input: {
 export function getFacility(code: string): Facility | null {
   const row = db.prepare('SELECT * FROM facilities WHERE code = ?').get(code);
   return row ? rowToFacility(row) : null;
+}
+
+// ---- Beds / rooms ---------------------------------------------------------
+
+function rowToBed(row: any): Bed {
+  return {
+    id: row.id,
+    facilityCode: row.facility_code,
+    ward: row.ward,
+    room: row.room,
+    label: row.label,
+    status: row.status,
+    updatedAt: row.updated_at,
+  };
+}
+
+/** All beds for a facility, ordered for a stable grid layout. */
+export function listBedsByFacility(facilityCode: string): Bed[] {
+  const rows = db
+    .prepare(
+      `SELECT * FROM beds WHERE facility_code = ?
+       ORDER BY ward ASC, room ASC, label ASC`
+    )
+    .all(facilityCode);
+  return rows.map(rowToBed);
+}
+
+export function getBed(id: number): Bed | null {
+  const row = db.prepare('SELECT * FROM beds WHERE id = ?').get(id);
+  return row ? rowToBed(row) : null;
+}
+
+export function createBed(input: {
+  facilityCode: string;
+  ward: string;
+  room: string;
+  label: string;
+  status?: BedStatus;
+}): Bed {
+  const info = db
+    .prepare(
+      `INSERT INTO beds (facility_code, ward, room, label, status, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      input.facilityCode,
+      input.ward,
+      input.room,
+      input.label,
+      input.status ?? 'Available',
+      nowUtc()
+    );
+  return getBed(Number(info.lastInsertRowid))!;
+}
+
+/** Update a bed's status, scoped to the owning facility (no cross-facility writes). */
+export function updateBedStatus(
+  facilityCode: string,
+  id: number,
+  status: BedStatus
+): Bed | null {
+  db.prepare(
+    `UPDATE beds SET status = ?, updated_at = ? WHERE id = ? AND facility_code = ?`
+  ).run(status, nowUtc(), id, facilityCode);
+  const bed = getBed(id);
+  return bed && bed.facilityCode === facilityCode ? bed : null;
+}
+
+// ---- Equipment ------------------------------------------------------------
+
+function rowToEquipment(row: any): Equipment {
+  return {
+    id: row.id,
+    facilityCode: row.facility_code,
+    name: row.name,
+    room: row.room,
+    status: row.status,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function listEquipmentByFacility(facilityCode: string): Equipment[] {
+  const rows = db
+    .prepare(
+      `SELECT * FROM equipment WHERE facility_code = ?
+       ORDER BY room ASC, name ASC`
+    )
+    .all(facilityCode);
+  return rows.map(rowToEquipment);
+}
+
+export function getEquipment(id: number): Equipment | null {
+  const row = db.prepare('SELECT * FROM equipment WHERE id = ?').get(id);
+  return row ? rowToEquipment(row) : null;
+}
+
+export function createEquipment(input: {
+  facilityCode: string;
+  name: string;
+  room: string;
+  status?: EquipmentStatus;
+}): Equipment {
+  const info = db
+    .prepare(
+      `INSERT INTO equipment (facility_code, name, room, status, updated_at)
+       VALUES (?, ?, ?, ?, ?)`
+    )
+    .run(
+      input.facilityCode,
+      input.name,
+      input.room,
+      input.status ?? 'Operational',
+      nowUtc()
+    );
+  return getEquipment(Number(info.lastInsertRowid))!;
+}
+
+export function updateEquipmentStatus(
+  facilityCode: string,
+  id: number,
+  status: EquipmentStatus
+): Equipment | null {
+  db.prepare(
+    `UPDATE equipment SET status = ?, updated_at = ? WHERE id = ? AND facility_code = ?`
+  ).run(status, nowUtc(), id, facilityCode);
+  const eq = getEquipment(id);
+  return eq && eq.facilityCode === facilityCode ? eq : null;
 }
 
 // ---- Staff invites --------------------------------------------------------

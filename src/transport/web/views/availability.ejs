@@ -1,0 +1,220 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <h1>Bed &amp; equipment availability</h1>
+  <p class="muted">
+    Facility <b><%= view.facilityCode %></b>. Pick a bed to change its status, like choosing a seat.
+    Occupied beds show which patient and doctor are there so you can direct visitors.
+  </p>
+  <% if (error) { %><div class="error"><%= error %></div><% } %>
+
+  <style>
+    /* Seat-map styling, scoped to this page. */
+    .legend { display:flex; gap:14px; flex-wrap:wrap; margin:6px 0 14px; font-size:12px; }
+    .legend .key { display:flex; align-items:center; gap:6px; }
+    .swatch { width:16px; height:16px; border-radius:4px; border:1px solid rgba(0,0,0,.12); display:inline-block; }
+    .s-Available     { background:#d1e7dd; }
+    .s-Occupied      { background:#f8c9c9; }
+    .s-Reserved      { background:#fde9c8; }
+    .s-Cleaning      { background:#cfe2ff; }
+    .s-OutOfService  { background:#e2e8f0; color:#8a9098; }
+    .s-Operational   { background:#d1e7dd; }
+    .s-InUse         { background:#cfe2ff; }
+    .s-Maintenance   { background:#fde9c8; }
+    .s-Broken        { background:#f8c9c9; }
+
+    .room { border:1px solid var(--line); border-radius:9px; padding:10px 12px; margin:10px 0; }
+    .room h4 { margin:0 0 8px; font-size:13px; color:var(--muted); letter-spacing:.3px; }
+    .seats { display:flex; gap:8px; flex-wrap:wrap; }
+    .seat {
+      position:relative; width:52px; height:52px; border-radius:8px;
+      border:1px solid rgba(0,0,0,.12); cursor:pointer; padding:0;
+      display:flex; align-items:center; justify-content:center;
+      font-weight:700; font-size:14px; color:var(--fg);
+    }
+    .seat small { position:absolute; bottom:3px; right:5px; font-size:9px; font-weight:600; opacity:.65; }
+    .seat:focus-within { outline:2px solid var(--accent); outline-offset:2px; }
+    /* The hidden status picker reveals on hover/focus of a seat. */
+    .seat .picker {
+      display:none; position:absolute; z-index:5; top:56px; left:0;
+      background:#fff; border:1px solid var(--line); border-radius:8px;
+      box-shadow:0 6px 18px rgba(0,0,0,.12); padding:8px; min-width:150px;
+    }
+    .seat:hover .picker, .seat:focus-within .picker { display:block; }
+    .seat .picker select { font-size:12px; margin-bottom:6px; }
+    .seat .picker button { width:100%; font-size:12px; padding:6px; }
+    .ward-head { display:flex; align-items:baseline; gap:10px; margin-top:4px; }
+    .ward-head .pill { background:#eef2f3; }
+    .equip-table td.status { width:200px; }
+    .inline { display:flex; gap:8px; align-items:center; margin:0; }
+    /* Occupied seats get a subtle ring + a person glyph so they stand out. */
+    .seat.occupied-by { box-shadow: inset 0 0 0 2px var(--accent); }
+    .seat.occupied-by::before { content:'\1F464'; position:absolute; top:3px; left:5px; font-size:10px; }
+    .occ-card { font-size:12px; background:#f6f9fa; border:1px solid var(--line); border-radius:6px; padding:6px 8px; margin-bottom:6px; }
+    .occ-list { font-size:12px; color:var(--muted); margin:2px 0 0; }
+    .screen { text-align:center; color:var(--muted); font-size:12px; letter-spacing:3px;
+              border-bottom:2px solid var(--line); padding-bottom:4px; margin:4px 0 12px; }
+    .seat .picker.wide { min-width:200px; }
+    .picker hr { border:0; border-top:1px solid var(--line); margin:8px 0; }
+    .remove-btn { background:#8a1f1f; }
+    /* Distribution dashboard */
+    .dist-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-top:10px; }
+    .dist-cell { border:1px solid var(--line); border-radius:8px; padding:10px; }
+    .dist-cell .ward { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
+    .dist-cell .room { font-weight:700; }
+    .bar { height:8px; border-radius:999px; background:#eef2f3; margin-top:6px; overflow:hidden; }
+    .bar > span { display:block; height:100%; background:var(--accent); }
+    .dist-num { font-size:12px; color:var(--muted); margin-top:4px; }
+  </style>
+
+  <!-- Overview stats -->
+  <div class="card">
+    <div class="stat"><div class="n"><%= view.totals.availableBeds %>/<%= view.totals.beds %></div><div class="muted">Beds available</div></div>
+    <div class="stat"><div class="n"><%= view.totals.operationalEquipment %>/<%= view.totals.equipment %></div><div class="muted">Equipment operational</div></div>
+    <div class="legend">
+      <span class="key"><span class="swatch s-Available"></span> Available</span>
+      <span class="key"><span class="swatch s-Occupied"></span> Occupied</span>
+      <span class="key"><span class="swatch s-Reserved"></span> Reserved</span>
+      <span class="key"><span class="swatch s-Cleaning"></span> Cleaning</span>
+      <span class="key"><span class="swatch s-OutOfService"></span> Out of service</span>
+    </div>
+  </div>
+
+  <!-- Patient distribution dashboard: see building load without scrolling -->
+  <div class="card">
+    <h2 style="margin-top:0">Patient distribution</h2>
+    <p class="muted" style="margin-top:0">
+      <b><%= view.distribution.totalPatientsInBuilding %></b> patient(s) currently in the building.
+    </p>
+
+    <div class="row" style="gap:18px">
+      <% view.distribution.byWard.forEach(function(w){ %>
+        <div class="stat">
+          <div class="n"><%= w.occupied %>/<%= w.total %></div>
+          <div class="muted"><%= w.ward %> ward occupied</div>
+        </div>
+      <% }); %>
+    </div>
+
+    <div class="dist-grid">
+      <% view.distribution.byRoom.forEach(function(r){ var pct = r.total ? Math.round(r.occupied / r.total * 100) : 0; %>
+        <div class="dist-cell">
+          <div class="ward"><%= r.ward %></div>
+          <div class="room">Room <%= r.room %></div>
+          <div class="bar"><span style="width:<%= pct %>%"></span></div>
+          <div class="dist-num"><%= r.occupied %> of <%= r.total %> beds in use</div>
+        </div>
+      <% }); %>
+    </div>
+  </div>
+
+  <!-- Beds, grouped by ward then room, drawn like a seat map -->
+  <% if (view.wards.length === 0) { %>
+    <div class="card"><p class="muted">No beds configured for this facility yet.</p></div>
+  <% } %>
+
+  <% view.wards.forEach(function(ward){ %>
+    <div class="card">
+      <div class="ward-head">
+        <h2 style="margin:0"><%= ward.ward %> ward</h2>
+        <span class="pill"><%= ward.counts.available %> of <%= ward.counts.total %> free</span>
+      </div>
+      <div class="screen">— — — ward floor — — —</div>
+
+      <% ward.rooms.forEach(function(room){ %>
+        <div class="room">
+          <h4>Room <%= room.room %></h4>
+          <div class="seats">
+            <% room.beds.forEach(function(bv){ var bed = bv.bed; var occ = bv.occupancy; %>
+              <div class="seat s-<%= bed.status %><%= occ ? ' occupied-by' : '' %>" tabindex="0"
+                   title="Bed <%= bed.label %> — <%= bed.status %><%= occ ? ' — patient ' + occ.patientName + ', Dr. ' + occ.doctorName : '' %>">
+                <%= bed.label %>
+                <small><%= bed.status === 'Available' ? 'free' : bed.status.slice(0,4) %></small>
+                <div class="picker wide">
+                  <label style="margin:0 0 4px">Bed <%= room.room %>-<%= bed.label %></label>
+
+                  <% if (occ) { %>
+                    <div class="occ-card">
+                      <div><b>Patient:</b> <%= occ.patientName %></div>
+                      <div><b>Doctor:</b> <%= occ.doctorName %></div>
+                    </div>
+                    <form method="post" action="/availability/beds/<%= bed.id %>/release" style="display:block">
+                      <button class="remove-btn" type="submit">Remove occupant &amp; free bed</button>
+                    </form>
+                  <% } else { %>
+                    <form method="post" action="/availability/beds/<%= bed.id %>/assign" style="display:block">
+                      <select name="patientId" required>
+                        <option value="">Choose patient…</option>
+                        <% view.patientOptions.forEach(function(p){ %>
+                          <option value="<%= p.id %>"><%= p.name %></option>
+                        <% }); %>
+                      </select>
+                      <select name="doctorId" required style="margin-top:6px">
+                        <option value="">Choose doctor…</option>
+                        <% view.doctorOptions.forEach(function(d){ %>
+                          <option value="<%= d.id %>"><%= d.name %></option>
+                        <% }); %>
+                      </select>
+                      <button type="submit" style="margin-top:6px">Assign to bed</button>
+                    </form>
+                  <% } %>
+
+                  <hr />
+                  <form class="inline" method="post" action="/availability/beds/<%= bed.id %>" style="display:block">
+                    <select name="status">
+                      <% view.bedStatuses.forEach(function(st){ %>
+                        <option value="<%= st %>" <%= st===bed.status?'selected':'' %>><%= st %></option>
+                      <% }); %>
+                    </select>
+                    <button class="secondary" type="submit">Set status</button>
+                  </form>
+                </div>
+              </div>
+            <% }); %>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+  <% }); %>
+
+  <!-- Equipment status board -->
+  <div class="card">
+    <h2 style="margin-top:0">Equipment status</h2>
+    <% if (view.equipment.length === 0) { %>
+      <p class="muted">No equipment recorded for this facility yet.</p>
+    <% } else { %>
+      <table class="equip-table">
+        <thead><tr><th>Equipment</th><th>Room &amp; who's there</th><th>Status</th></tr></thead>
+        <tbody>
+          <% view.equipment.forEach(function(ev){ var eq = ev.equipment; %>
+            <tr>
+              <td><%= eq.name %></td>
+              <td>
+                <%= eq.room %>
+                <% if (ev.roomOccupants && ev.roomOccupants.length) { %>
+                  <div class="occ-list">
+                    <% ev.roomOccupants.forEach(function(o){ %>
+                      <div><%= o.patientName %> · Dr. <%= o.doctorName %></div>
+                    <% }); %>
+                  </div>
+                <% } %>
+              </td>
+              <td class="status">
+                <form class="inline" method="post" action="/availability/equipment/<%= eq.id %>">
+                  <span class="swatch s-<%= eq.status %>"></span>
+                  <select name="status" style="width:auto">
+                    <% view.equipmentStatuses.forEach(function(st){ %>
+                      <option value="<%= st %>" <%= st===eq.status?'selected':'' %>><%= st %></option>
+                    <% }); %>
+                  </select>
+                  <button class="secondary" type="submit">Save</button>
+                </form>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</main>
+<%- include('partials/foot') %>

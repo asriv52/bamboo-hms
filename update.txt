@@ -1,0 +1,212 @@
+============================================================
+UPDATE PLAN — Security & UI follow-ups
+Generated after inspecting the running app + source
+============================================================
+
+SCOPE
+-----
+This file lists the agreed follow-up items from the localhost:3000 review,
+with verification results and concrete steps. Items are ordered by priority.
+
+Legend:
+  [VERIFIED] = checked against source, status is confirmed
+  [TODO]     = action required
+  [DEFERRED] = intentionally out of scope for the hackathon
+
+
+------------------------------------------------------------
+ITEM 1 — HTTPS / secure session cookie            [DEFERRED]
+------------------------------------------------------------
+Finding:
+  src/transport/web/app.ts sets the session cookie with httpOnly + sameSite
+  'lax' but NOT `secure`. For a government-grade deployment the cookie should
+  be `secure` so it is never sent over plain HTTP.
+
+Decision:
+  Deferred for the hackathon. A `secure` cookie requires serving over HTTPS,
+  which needs a TLS certificate we will not provision for the demo.
+
+When revisited (production):
+  - Terminate TLS at the host/proxy and set cookie `secure: true` when
+    NODE_ENV === 'production'.
+  - Note: "HTTPS the host can't read" (end-to-end so even the operator can't
+    see payloads) is NOT what TLS provides — TLS terminates at the server, so
+    the server necessarily sees plaintext. True zero-knowledge of health data
+    would require client-side/end-to-end encryption, which is a much larger
+    design change. Capture this as a future Security Specialist item
+    (maps to SS-15, SS-23, SS-25 in personas.txt), not a hackathon task.
+
+
+------------------------------------------------------------
+ITEM 2 — CSRF protection                          [TODO]
+------------------------------------------------------------
+Finding:
+  No CSRF tokens anywhere. All state-changing routes are session-cookie POST
+  forms. `sameSite: 'lax'` blocks most cross-site POSTs in modern browsers but
+  is not a complete defense. Maps to SS-07 and the government-program framing.
+
+Steps:
+  1. Add a lightweight CSRF token helper in the web transport layer
+     (do NOT pull a heavy dependency; a per-session random token is enough):
+       - On session creation, generate req.session.csrfToken = randomToken()
+         (reuse core/crypto randomToken()).
+       - Expose it to views via res.locals (e.g. in requireAuth and the portal
+         guard) so templates can render it.
+  2. Add a hidden field to EVERY POST form in src/transport/web/views:
+       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+     Forms to update (from routes.ts POST handlers):
+       login, select-role, logout, admin/invites, admin/staff/:id,
+       admin/facility, invite/:token, patients, queue, visits,
+       visits/:id/finalize, visits/:id/attachments, pharmacy/dispense,
+       technician/tests/:id/result, portal/request-otp, portal/verify,
+       portal/logout
+     (login/request-otp can be exempted if the token isn't available
+      pre-session; decide per-form.)
+  3. Add a verification middleware applied to all POST routes that compares
+     req.body._csrf to req.session.csrfToken; on mismatch respond 403 with the
+     existing 'error' view. Mount it in app.ts after the session middleware.
+  4. Add a test in src/__tests__ asserting a POST without a valid _csrf token
+     is rejected with 403.
+
+Acceptance (EARS, add to personas SS set if desired):
+  IF a state-changing POST arrives without a valid CSRF token,
+  THEN THE system SHALL reject it with 403 and make no data change.
+
+
+------------------------------------------------------------
+ITEM 3 — Audit logging of PHI access              [VERIFIED — already solved]
+------------------------------------------------------------
+Finding:
+  src/core/audit.ts implements an append-only audit log (INSERT only; no update
+  or delete API) backed by an `audit_records` table. recordAudit() is invoked in
+  consultationService for visit_open, visit_finalize, prescription_issue, and
+  test_recommend. A /notifications-style listing exists via listAudit().
+
+Status:
+  Implicitly solved for hackathon scope. No action required now.
+
+Optional hardening (future, not hackathon):
+  - Also audit READ access to PHI (currently mutations are audited; reads such
+    as getPatientSummary are not). Maps to SS-06 / SS-19.
+  - Tamper-evidence (hash chaining) for SS-20. Deferred.
+
+
+------------------------------------------------------------
+ITEM 4 — Doctor can load another doctor's visit    [TODO — HIGH PRIORITY]
+------------------------------------------------------------
+Finding (CONFIRMED gap):
+  Route GET /visits/:id in src/transport/web/routes.ts calls the RAW
+  entityStore.getVisit(visitId) directly and only scopes the patient *summary*
+  via req.query.patientId. The `visit` object itself is fetched by id with NO
+  check that it belongs to the requesting doctor or that the doctor has a
+  qualifying relationship with the patient. A doctor can pass an arbitrary
+  visit id in the URL and render another doctor's visit.
+
+  The service layer already has the correct, scoped function:
+  consultationService.getVisitDetailForDoctor(actor, visitId), which calls
+  assertDoctorCanReadHistory(actor, visit.patientId) and throws AccessDenied
+  when the doctor does not qualify. The route simply isn't using it.
+
+  Violates: steering "Doctors / Specialists" access rules, persona DR-09,
+  and SS-03.
+
+Steps:
+  1. In src/transport/web/routes.ts, replace the body of GET /visits/:id so it
+     authorizes through the service instead of raw getVisit():
+
+       router.get('/visits/:id', requireWebRole('Doctor'), (req, res) => {
+         const actor = res.locals.actor;
+         const visitId = Number(req.params.id);
+         try {
+           // Scoped: throws AccessDenied if this doctor can't read the visit.
+           const detail = getVisitDetailForDoctor(actor, visitId);
+           const summary = getPatientSummary(actor, detail.visit.patientId);
+           res.render('consultation', {
+             title: 'Consultation',
+             actor,
+             visitId,
+             visit: detail.visit,
+             summary,
+           });
+         } catch (err) {
+           const { status, message } = friendly(err);
+           res.status(status).render('error', { title: 'Error', message, actor });
+         }
+       });
+
+     Notes:
+       - getVisitDetailForDoctor is already imported in routes.ts.
+       - Derive patientId from the authorized visit (detail.visit.patientId),
+         NOT from req.query.patientId, so the URL can't be used to mix a visit
+         with an unrelated patient's summary.
+       - Remove the now-unneeded reliance on req.query.patientId for this route.
+  2. Audit the read (optional but recommended for consistency): call
+     recordAudit({ actor, action: 'visit_view', entity: 'visit',
+     entityId: visitId }) inside getVisitDetailForDoctor, or in the route after
+     authorization succeeds.
+  3. Add a regression test in src/__tests__:
+       - Seed two doctors (A, B) and a patient with a visit under doctor A.
+       - Log in as doctor B and GET /visits/<A's visit id>.
+       - Assert 403 (AccessDenied) and that the consultation view is NOT
+         rendered.
+       - Assert doctor A can still open their own visit (200).
+
+Acceptance (EARS):
+  IF a doctor requests a visit they neither own nor have a qualifying
+  relationship for, THEN THE system SHALL deny access and SHALL NOT render
+  the visit.
+
+
+------------------------------------------------------------
+ITEM 5 — Billing UI (static, no GET/POST)          [TODO]
+------------------------------------------------------------
+Goal:
+  A simple patient-facing billing page for UI/demo purposes only. No backend
+  reads or writes — a static informational layout with fields and visible
+  "security-conscious" affordances (e.g., masked card entry, "estimate vs final"
+  labels). Supports the Financially Burdened persona (FB-01..FB-07) as a visual
+  placeholder.
+
+Steps:
+  1. Create a view src/transport/web/views/billing.ejs that renders:
+       - A summary table: service / description / status / estimated cost /
+         final cost (use clear "Estimate" vs "Final" labels per FB-06).
+       - An outstanding-balance line (per FB-04).
+       - A read-only payment-details section with masked inputs
+         (e.g. inputmode, autocomplete="off", placeholder "•••• •••• •••• 1234")
+         that do NOT submit anywhere. Add `onsubmit="return false"` or omit the
+         <form action> entirely so there is no GET/POST.
+       - A clear note: "Demo only — no payment is processed and no data is
+         stored or transmitted."
+     Keep styling consistent with existing views for recognizability (AR-02).
+  2. Add a render-only route (no data layer) that serves the static page to a
+     logged-in patient portal session, reusing requirePortal:
+       router.get('/portal/billing', (req, res) => {
+         const patientId = requirePortal(req, res);
+         if (patientId === null) return;
+         const patient = getPortalPatient(patientId);
+         res.render('billing', { title: 'Billing', patient });
+       });
+     (This only reads the already-authorized portal patient for the header;
+      it performs no billing data access.)
+  3. Add a link to it from portal-home.ejs so it is reachable within the portal
+     navigation (<= 3 clicks, per TS-01 / NP-06).
+  4. Because fields do not submit, there is no CSRF or validation surface here;
+     add an HTML comment in billing.ejs stating the page is intentionally inert.
+
+Acceptance (EARS):
+  THE system SHALL present a patient billing page that displays estimated and
+  final costs and an outstanding balance, AND SHALL NOT submit, store, or
+  transmit any entered payment data.
+
+
+------------------------------------------------------------
+SUGGESTED ORDER OF WORK
+------------------------------------------------------------
+  1. ITEM 4  (security leak — do first)
+  2. ITEM 2  (CSRF)
+  3. ITEM 5  (billing UI)
+  (ITEM 1 and the ITEM 3 hardening are deferred / future.)
+
+After ITEM 4 and ITEM 2, run:  npm run test
+Confirm the new regression tests pass and the existing suite is green.

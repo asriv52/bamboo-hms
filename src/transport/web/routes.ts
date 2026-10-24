@@ -32,6 +32,13 @@ import {
   InviteError,
 } from '../../modules/admin/inviteService';
 import {
+  assignOccupant,
+  getAvailability,
+  releaseBed,
+  setBedStatus,
+  setEquipmentStatus,
+} from '../../modules/availability/availabilityService';
+import {
   lookupActivePlan,
   lookupByToken,
   recordDispensing,
@@ -225,6 +232,87 @@ router.post('/admin/facility', requireWebRole('Admin'), (req, res) => {
       facility: getFacilityProfile(actor),
       error: message,
       saved: false,
+    });
+  }
+});
+
+// ---- Bed / equipment availability + occupancy (Receptionist, facility-scoped) ----
+
+router.get('/availability', requireWebRole('Receptionist'), (req, res) => {
+  const actor = res.locals.actor;
+  res.render('availability', {
+    title: 'Bed & equipment availability',
+    actor,
+    view: getAvailability(actor),
+    error: null,
+  });
+});
+
+router.post('/availability/beds/:id', requireWebRole('Receptionist'), (req, res) => {
+  const actor = res.locals.actor;
+  try {
+    setBedStatus(actor, Number(req.params.id), String(req.body.status));
+    res.redirect('/availability');
+  } catch (err) {
+    const { status, message } = friendly(err);
+    res.status(status).render('availability', {
+      title: 'Bed & equipment availability',
+      actor,
+      view: getAvailability(actor),
+      error: message,
+    });
+  }
+});
+
+router.post('/availability/equipment/:id', requireWebRole('Receptionist'), (req, res) => {
+  const actor = res.locals.actor;
+  try {
+    setEquipmentStatus(actor, Number(req.params.id), String(req.body.status));
+    res.redirect('/availability');
+  } catch (err) {
+    const { status, message } = friendly(err);
+    res.status(status).render('availability', {
+      title: 'Bed & equipment availability',
+      actor,
+      view: getAvailability(actor),
+      error: message,
+    });
+  }
+});
+
+router.post('/availability/beds/:id/assign', requireWebRole('Receptionist'), (req, res) => {
+  const actor = res.locals.actor;
+  try {
+    assignOccupant(
+      actor,
+      Number(req.params.id),
+      Number(req.body.patientId),
+      Number(req.body.doctorId)
+    );
+    res.redirect('/availability');
+  } catch (err) {
+    const { status, message } = friendly(err);
+    res.status(status).render('availability', {
+      title: 'Bed & equipment availability',
+      actor,
+      view: getAvailability(actor),
+      error: message,
+    });
+  }
+});
+
+router.post('/availability/beds/:id/release', requireWebRole('Receptionist'), (req, res) => {
+  const actor = res.locals.actor;
+  try {
+    releaseBed(actor, Number(req.params.id));
+    res.redirect('/availability');
+  } catch (err) {
+    const { status, message } = friendly(err);
+    res.status(status).render('availability', {
+      title: 'Bed & equipment availability',
+      actor,
+      view: getAvailability(actor),
+      error: message,
     });
   }
 });

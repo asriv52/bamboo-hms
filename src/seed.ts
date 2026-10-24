@@ -1,14 +1,19 @@
 import { db, initSchema } from './core/db';
 import {
   createAttachment,
+  createBed,
+  createEquipment,
   createLabTest,
   createPatient,
   createPrescription,
   createStaffUser,
   createVisit,
   finalizeVisit,
+  getPatientByEmail,
   getStaffByEmail,
+  listBedsByFacility,
   recordLabTestResult,
+  updateBedStatus,
   upsertFacility,
 } from './core/entityStore';
 import { randomToken } from './core/crypto';
@@ -30,6 +35,8 @@ function reset(): void {
     DELETE FROM access_grants;
     DELETE FROM audit_records;
     DELETE FROM notification_jobs;
+    DELETE FROM beds;
+    DELETE FROM equipment;
     DELETE FROM patients;
     DELETE FROM staff_users;
     DELETE FROM staff_invites;
@@ -61,6 +68,43 @@ function seed(): void {
     departments: ['Pharmacy'],
     specialties: 'Dispensing, restock',
   });
+
+  // Beds / rooms for the seat-map availability view. Two wards: Regular and
+  // Emergency, each with a few rooms of beds in mixed statuses so the demo
+  // shows the full legend.
+  const bedPlan: Array<{ ward: string; room: string; label: string; status: any }> = [
+    { ward: 'Regular', room: 'R-101', label: 'A', status: 'Available' },
+    { ward: 'Regular', room: 'R-101', label: 'B', status: 'Occupied' },
+    { ward: 'Regular', room: 'R-101', label: 'C', status: 'Available' },
+    { ward: 'Regular', room: 'R-102', label: 'A', status: 'Reserved' },
+    { ward: 'Regular', room: 'R-102', label: 'B', status: 'Cleaning' },
+    { ward: 'Regular', room: 'R-103', label: 'A', status: 'Available' },
+    { ward: 'Regular', room: 'R-103', label: 'B', status: 'OutOfService' },
+    { ward: 'Emergency', room: 'ER-1', label: 'A', status: 'Occupied' },
+    { ward: 'Emergency', room: 'ER-1', label: 'B', status: 'Available' },
+    { ward: 'Emergency', room: 'ER-2', label: 'A', status: 'Available' },
+    { ward: 'Emergency', room: 'ER-2', label: 'B', status: 'Reserved' },
+  ];
+  for (const b of bedPlan) {
+    createBed({ facilityCode: FACILITY, ward: b.ward, room: b.room, label: b.label, status: b.status });
+  }
+  // Keyed lookup so we can assign demo visits to specific beds below.
+  const bedByKey = new Map(
+    listBedsByFacility(FACILITY).map((b) => [`${b.room}-${b.label}`, b])
+  );
+
+  // Equipment inventory with mixed statuses and their rooms.
+  const equipmentPlan: Array<{ name: string; room: string; status: any }> = [
+    { name: 'Ventilator', room: 'ER-1', status: 'InUse' },
+    { name: 'Defibrillator', room: 'ER-1', status: 'Operational' },
+    { name: 'ECG monitor', room: 'ER-2', status: 'Operational' },
+    { name: 'X-ray machine', room: 'R-103', status: 'Maintenance' },
+    { name: 'Infusion pump', room: 'R-101', status: 'Operational' },
+    { name: 'Ultrasound scanner', room: 'R-102', status: 'Broken' },
+  ];
+  for (const e of equipmentPlan) {
+    createEquipment({ facilityCode: FACILITY, name: e.name, room: e.room, status: e.status });
+  }
 
   // Staff logins (synthetic). One multi-role account to demo role selection.
   const staff = [
@@ -149,6 +193,21 @@ function seed(): void {
   createLabTest({ visitId: v2.id, testName: 'Complete Blood Count', priority: 'High', notes: 'Fasting not required.' });
   const doneTest = createLabTest({ visitId: v2.id, testName: 'Iron Panel', priority: 'Medium', notes: null });
   recordLabTestResult(doneTest.id, 'Within normal range.', null);
+
+  // Occupancy demo: two OPEN visits assigned to beds, so the receptionist's
+  // availability board shows which patient + doctor is at which bed/room. These
+  // visits are left Open (not finalized) so they count as current occupancy.
+  const mina = getPatientByEmail('mina.patient@example.test')!;
+  const regBed = bedByKey.get('R-101-B'); // in the Regular ward
+  const erBed = bedByKey.get('ER-1-A');   // in the Emergency ward
+  if (regBed) {
+    createVisit({ patientId: jordan.id, doctorId: doctor.id, queueEntryId: null, facilityCode: FACILITY, bedId: regBed.id });
+    updateBedStatus(FACILITY, regBed.id, 'Occupied');
+  }
+  if (erBed) {
+    createVisit({ patientId: mina.id, doctorId: doctor.id, queueEntryId: null, facilityCode: FACILITY, bedId: erBed.id });
+    updateBedStatus(FACILITY, erBed.id, 'Occupied');
+  }
 
   // eslint-disable-next-line no-console
   console.log('Seed complete. Demo logins (all password: demo1234):');

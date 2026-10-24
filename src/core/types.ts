@@ -70,6 +70,8 @@ export interface Visit {
   patientId: number;
   doctorId: number;
   queueEntryId: number | null;
+  /** Bed this visit currently occupies, if any. Freed when the visit finalizes. */
+  bedId: number | null;
   facilityCode: string;
   /** Short, human-friendly per-visit "receipt" code (e.g. RCPT-7F3K9). Unique. */
   accessCode: string;
@@ -156,6 +158,42 @@ export interface NotificationJob {
   attempts: number;
   lastError: string | null;
   createdAt: string;
+}
+
+export type BedWard = 'Regular' | 'Emergency';
+export type BedStatus = 'Available' | 'Occupied' | 'Reserved' | 'Cleaning' | 'OutOfService';
+
+export interface Bed {
+  id: number;
+  facilityCode: string;
+  ward: BedWard | string;
+  room: string;
+  label: string;
+  status: BedStatus;
+  updatedAt: string;
+}
+
+export type EquipmentStatus = 'Operational' | 'InUse' | 'Maintenance' | 'Broken';
+
+export interface Equipment {
+  id: number;
+  facilityCode: string;
+  name: string;
+  room: string;
+  status: EquipmentStatus;
+  updatedAt: string;
+}
+
+/**
+ * Who currently occupies a bed, derived from the open visit assigned to it.
+ * Used by the receptionist occupancy board to direct visitors — it carries
+ * names and location only, never any clinical content.
+ */
+export interface BedOccupancy {
+  bedId: number;
+  visitId: number;
+  patientName: string;
+  doctorName: string;
 }
 
 /** The authenticated actor making a request, with the role active this session. */
