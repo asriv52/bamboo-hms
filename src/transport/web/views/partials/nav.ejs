@@ -106,7 +106,7 @@
     <% } %>
   </div>
 
-  <a class="brand" href="<%= signedIn ? '/dashboard' : '/' %>">Clinic HMS</a>
+  <a class="brand" href="<%= signedIn ? '/dashboard' : '/' %>"><%- include('logo') %></a>
 
   <div class="header-right">
     <% if (signedIn) { %>

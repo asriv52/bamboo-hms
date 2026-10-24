@@ -1,5 +1,5 @@
 <header>
-  <span class="brand">Your Health Records</span>
+  <span class="brand"><%- include('logo') %></span>
   <% if (typeof patient !== 'undefined' && patient) { %>
     <nav aria-label="Patient menu">
       <a href="/portal/home">My visits</a>

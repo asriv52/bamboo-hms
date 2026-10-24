@@ -7,11 +7,6 @@ import {
   BedStatus,
   DispensingRecord,
   EhrCategory,
-<<<<<<< HEAD
-  Equipment,
-  EquipmentStatus,
-=======
->>>>>>> 6b4b480bf12e8c89762319e0e9401ba026d26828
   Facility,
   FacilityKind,
   LabTest,
@@ -739,10 +734,7 @@ export function getFacility(code: string): Facility | null {
 }
 
 // ---- Beds -----------------------------------------------------------------
-<<<<<<< HEAD
-=======
 // (Equipment lives in opsStore; the receptionist seat-map reads it from there.)
->>>>>>> 6b4b480bf12e8c89762319e0e9401ba026d26828
 
 function rowToBed(row: any): Bed {
   return {
@@ -808,80 +800,6 @@ export function updateBedStatus(
   return bed && bed.facilityCode === facilityCode ? bed : null;
 }
 
-<<<<<<< HEAD
-// ---- Equipment ------------------------------------------------------------
-
-// Equipment on the UNIFIED schema. These accessors serve the receptionist
-// seat-map (room-based). The facility-ops UI uses its own accessors in
-// opsStore against the same table; both read the superset columns.
-
-function rowToEquipment(row: any): Equipment {
-  return {
-    id: row.id,
-    facilityCode: row.facility_code,
-    name: row.name,
-    category: row.category ?? 'General',
-    location: row.location ?? null,
-    room: row.room ?? null,
-    status: row.status,
-    updatedAt: row.updated_at,
-  };
-}
-
-export function listEquipmentByFacility(facilityCode: string): Equipment[] {
-  const rows = db
-    .prepare(
-      `SELECT * FROM equipment WHERE facility_code = ?
-       ORDER BY COALESCE(room, location, '') ASC, name ASC`
-    )
-    .all(facilityCode);
-  return rows.map(rowToEquipment);
-}
-
-export function getEquipment(id: number): Equipment | null {
-  const row = db.prepare('SELECT * FROM equipment WHERE id = ?').get(id);
-  return row ? rowToEquipment(row) : null;
-}
-
-export function createEquipment(input: {
-  facilityCode: string;
-  name: string;
-  room?: string | null;
-  category?: string;
-  location?: string | null;
-  status?: EquipmentStatus;
-}): Equipment {
-  const info = db
-    .prepare(
-      `INSERT INTO equipment (facility_code, name, category, location, room, status, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      input.facilityCode,
-      input.name,
-      input.category ?? 'General',
-      input.location ?? null,
-      input.room ?? null,
-      input.status ?? 'Operational',
-      nowUtc()
-    );
-  return getEquipment(Number(info.lastInsertRowid))!;
-}
-
-export function updateEquipmentStatus(
-  facilityCode: string,
-  id: number,
-  status: EquipmentStatus
-): Equipment | null {
-  db.prepare(
-    `UPDATE equipment SET status = ?, updated_at = ? WHERE id = ? AND facility_code = ?`
-  ).run(status, nowUtc(), id, facilityCode);
-  const eq = getEquipment(id);
-  return eq && eq.facilityCode === facilityCode ? eq : null;
-}
-
-=======
->>>>>>> 6b4b480bf12e8c89762319e0e9401ba026d26828
 export function listFacilities(kind?: FacilityKind): Facility[] {
   const rows = kind
     ? db.prepare('SELECT * FROM facilities WHERE kind = ? ORDER BY name ASC').all(kind)

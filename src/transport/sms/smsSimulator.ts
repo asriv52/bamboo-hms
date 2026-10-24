@@ -52,7 +52,8 @@ const PAGE = `<!DOCTYPE html>
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>SMS Simulator — Clinic HMS</title>
+<title>SMS Simulator — Bamboo HMS</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%228%22%20fill%3D%22%230a7d6b%22/%3E%3Crect%20x%3D%2212.5%22%20y%3D%224%22%20width%3D%227%22%20height%3D%227.5%22%20rx%3D%222%22%20fill%3D%22%23fff%22/%3E%3Crect%20x%3D%2212.5%22%20y%3D%2212.5%22%20width%3D%227%22%20height%3D%227.5%22%20rx%3D%222%22%20fill%3D%22%23fff%22/%3E%3Crect%20x%3D%2212.5%22%20y%3D%2221%22%20width%3D%227%22%20height%3D%227%22%20rx%3D%222%22%20fill%3D%22%23fff%22/%3E%3Cpath%20d%3D%22M19.5%2012C23%207.5%2026.5%207%2028.5%207.5C26.5%2011%2023.5%2012.8%2019.5%2012Z%22%20fill%3D%22%239be3c0%22/%3E%3Cpath%20d%3D%22M12.5%2020.5C9%2016%205.5%2015.5%203.5%2016C5.5%2019.5%208.5%2021.3%2012.5%2020.5Z%22%20fill%3D%22%239be3c0%22/%3E%3C/svg%3E" />
 <style>
   :root { --accent:#0a7d6b; --line:#dfe6ea; --bg:#eef2f3; }
   * { box-sizing:border-box; }

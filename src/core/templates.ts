@@ -22,8 +22,8 @@ function wrap(bodyText: string, bodyHtml: string, toEmail: string): RenderedEmai
   const unsub = unsubscribeLink(toEmail);
   return {
     subject: '', // set by caller
-    text: `${bodyText}\n\n—\nYou can opt out here: ${unsub}`,
-    html: `${bodyHtml}<hr/><p style="font-size:12px;color:#888">You can <a href="${unsub}">opt out of these emails</a>.</p>`,
+    text: `${bodyText}\n\n— Bamboo HMS\nYou can opt out here: ${unsub}`,
+    html: `${bodyHtml}<p style="color:#0a7d6b;font-weight:700">Bamboo HMS</p><hr/><p style="font-size:12px;color:#888">You can <a href="${unsub}">opt out of these emails</a>.</p>`,
   };
 }
 

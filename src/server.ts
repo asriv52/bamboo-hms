@@ -17,6 +17,6 @@ setInterval(() => {
 
 app.listen(config.port, () => {
   // eslint-disable-next-line no-console
-  console.log(`HMS running at ${config.publicBaseUrl} (port ${config.port})`);
+  console.log(`Bamboo HMS running at ${config.publicBaseUrl} (port ${config.port})`);
   console.log('Open /login and use a demo account from the seed output.');
 });

@@ -300,15 +300,9 @@ export function initSchema(): void {
       facility_code TEXT NOT NULL,
       name TEXT NOT NULL,
       category TEXT NOT NULL DEFAULT 'General', -- EHR category, or 'General'
-<<<<<<< HEAD
-      location TEXT,
-      room TEXT,                      -- room it currently lives in (seat-map)
-      status TEXT NOT NULL DEFAULT 'Operational', -- Operational|InUse|Maintenance|OutOfService|Broken
-=======
       location TEXT,                  -- room label, e.g. 'ER-1' (used by the seat-map)
       room TEXT,                      -- legacy column, kept so older databases still load
       status TEXT NOT NULL DEFAULT 'Operational', -- Operational|InUse|Maintenance|OutOfService
->>>>>>> 6b4b480bf12e8c89762319e0e9401ba026d26828
       updated_at TEXT NOT NULL
     );
 
