@@ -27,6 +27,14 @@ export function createApp() {
     })
   );
 
+  // Expose a dev-mailbox flag to all views so the nav can show the Mailbox link
+  // only outside production (where the /mailbox route is not mounted).
+  const devMailbox = process.env.NODE_ENV !== 'production';
+  app.use((_req, res, next) => {
+    res.locals.devMailbox = devMailbox;
+    next();
+  });
+
   app.use(router);
 
   return app;

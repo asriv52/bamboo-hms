@@ -14,6 +14,7 @@ import {
 import { AuthError, buildActor, login, resolveAutoRole } from '../../core/authService';
 import { getStaffByEmail } from '../../core/entityStore';
 import { listJobs } from '../../core/notificationService';
+import * as mailbox from '../email/mailbox';
 import { registerPatient, searchPatients } from '../../core/patientService';
 import { ValidationError } from '../../core/validation';
 import { Role } from '../../core/types';
@@ -469,6 +470,46 @@ router.post('/pharmacy/dispense', requireWebRole('Pharmacy'), (req, res) => {
 router.get('/notifications', requireAuth, (req, res) => {
   res.render('notifications', { title: 'Notifications', actor: res.locals.actor, jobs: listJobs() });
 });
+
+// ---- Virtual mailbox (dev-only email testing sink) ------------------------
+// Mounted only outside production. Captured emails contain PII and the store
+// has no auth, so these routes must never exist in a real deploy.
+
+if (process.env.NODE_ENV !== 'production') {
+  router.get('/mailbox', (req: Request, res: Response) => {
+    const grouped = mailbox.listByRecipient();
+    const recipients = mailbox.recipients();
+    const counts: Record<string, number> = {};
+    recipients.forEach((addr) => {
+      counts[addr] = grouped.get(addr)?.length ?? 0;
+    });
+    const requested = String(req.query.to || '');
+    const active =
+      requested && recipients.includes(requested)
+        ? requested
+        : recipients[0] ?? '';
+    res.render('mailbox', {
+      title: 'Mailbox',
+      actor: actorFromSession(req),
+      recipients,
+      counts,
+      active,
+      emails: active ? grouped.get(active) ?? [] : [],
+      total: mailbox.list().length,
+    });
+  });
+
+  // Lightweight poll endpoint for the page's auto-reload: returns the current
+  // number of captured emails so the client reloads only when it changes.
+  router.get('/mailbox/count', (_req: Request, res: Response) => {
+    res.json({ total: mailbox.list().length });
+  });
+
+  router.post('/mailbox/clear', (req: Request, res: Response) => {
+    mailbox.clear();
+    res.redirect('/mailbox');
+  });
+}
 
 // ---- Visit attachments (staff) --------------------------------------------
 

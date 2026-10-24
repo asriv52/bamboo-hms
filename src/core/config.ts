@@ -10,7 +10,10 @@ export const config = {
   databaseUrl: process.env.DATABASE_URL || 'hms.db',
   sessionSecret: process.env.SESSION_SECRET || 'dev-only-change-me',
   port: Number(process.env.PORT || 3000),
-  emailProvider: (process.env.EMAIL_PROVIDER || 'console') as 'console' | 'smtp',
+  emailProvider: (process.env.EMAIL_PROVIDER || 'console') as
+    | 'console'
+    | 'smtp'
+    | 'mailbox',
   publicBaseUrl: process.env.PUBLIC_BASE_URL || 'http://localhost:3000',
   piiEncryptionKey:
     process.env.PII_ENCRYPTION_KEY || 'dev-only-pii-key-change-me-please',

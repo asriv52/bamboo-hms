@@ -21,6 +21,9 @@
         <a href="/technician">Lab tests</a>
       <% } %>
       <a href="/notifications">Notifications</a>
+      <% if (typeof devMailbox !== 'undefined' && devMailbox) { %>
+        <a href="/mailbox">Mailbox</a>
+      <% } %>
     </nav>
     <span class="spacer"></span>
     <span class="who"><%= actor.name %> · <%= actor.activeRole %> · <%= actor.facilityCode %></span>
