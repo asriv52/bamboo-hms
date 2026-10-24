@@ -1,0 +1,31 @@
+<%- include('partials/head') %>
+<header><span class="brand">Your Health Records</span></header>
+<main>
+  <h1>View your health records</h1>
+  <p class="muted">Enter your email to receive a one-time access code. You'll then see all your past visits and prescriptions in one place.</p>
+
+  <div class="card">
+    <% if (error) { %><div class="error"><%= error %></div><% } %>
+
+    <% if (stage === 'email') { %>
+      <form method="post" action="/portal/request-otp">
+        <label>Your email *</label>
+        <input type="email" name="email" value="<%= email %>" required autofocus />
+        <div style="margin-top:14px"><button type="submit">Send access code</button></div>
+      </form>
+    <% } else { %>
+      <p class="muted">If an account exists for <b><%= email %></b>, we've emailed a 6-digit code. Enter it below. It expires in 10 minutes.</p>
+      <form method="post" action="/portal/verify">
+        <input type="hidden" name="email" value="<%= email %>" />
+        <label>Access code *</label>
+        <input type="text" name="code" inputmode="numeric" maxlength="6" placeholder="123456" required autofocus />
+        <div class="row" style="margin-top:14px">
+          <button type="submit">View my records</button>
+          <a class="btn secondary" href="/portal?stage=email&email=<%= encodeURIComponent(email) %>">Use a different email</a>
+        </div>
+      </form>
+    <% } %>
+  </div>
+  <p class="muted">This portal shows only your own records. Codes are sent by email only.</p>
+</main>
+<%- include('partials/foot') %>

@@ -79,9 +79,45 @@ export function initSchema(): void {
       doctor_id INTEGER NOT NULL REFERENCES staff_users(id),
       queue_entry_id INTEGER REFERENCES queue_entries(id),
       facility_code TEXT NOT NULL,
+      access_code TEXT NOT NULL UNIQUE,
       diagnosis TEXT,
       notes TEXT,
       status TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS lab_tests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      visit_id INTEGER NOT NULL REFERENCES visits(id),
+      test_name TEXT NOT NULL,
+      priority TEXT NOT NULL DEFAULT 'Medium',
+      status TEXT NOT NULL DEFAULT 'Pending',
+      notes TEXT,
+      result TEXT,
+      result_attachment_id INTEGER,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS attachments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      owner_type TEXT NOT NULL,       -- 'visit'
+      visit_id INTEGER NOT NULL REFERENCES visits(id),
+      original_name TEXT NOT NULL,
+      stored_name TEXT NOT NULL,
+      mime TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      uploaded_by_role TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS otps (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      context TEXT NOT NULL,          -- e.g. 'portal:<patientId>'
+      target_email TEXT NOT NULL,
+      code_hash TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      consumed_at TEXT,
+      attempts INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL
     );
 

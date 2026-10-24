@@ -2,12 +2,18 @@
 <%- include('partials/nav') %>
 <main>
   <h1>Consultation</h1>
+  <% if (visit) { %>
+    <p class="muted">Receipt code for this visit: <span class="code"><%= visit.accessCode %></span>
+      <span class="muted">— read this to the patient; they can view this visit in their records portal.</span></p>
+  <% } %>
   <% if (summary && summary.patient) { %>
     <p class="muted">Patient: <b><%= summary.patient.name %></b> (ID <%= summary.patient.id %>) ·
       allergies: <%= summary.patient.allergies || 'none recorded' %></p>
   <% } %>
+
   <div class="card">
     <form method="post" action="/visits/<%= visitId %>/finalize">
+      <h2 style="font-size:16px;margin-top:0">Clinical notes</h2>
       <label>Diagnosis *</label>
       <input type="text" name="diagnosis" required />
       <label>Notes</label>
@@ -24,10 +30,45 @@
           </div>
         <% } %>
       </div>
+      <p><button type="button" class="btn secondary" onclick="addMedRow()">+ Add medication</button></p>
 
-      <div style="margin-top:14px"><button type="submit">Finalize visit & notify patient</button></div>
+      <h2 style="font-size:16px">Recommended tests (optional)</h2>
+      <p class="muted">Order lab tests for a technician to complete. Leave blank to skip.</p>
+      <div id="tests">
+        <% for (var j=0;j<2;j++){ %>
+          <div class="grid3" style="margin-bottom:6px">
+            <input type="text" name="testName" placeholder="Test name e.g. Complete Blood Count" />
+            <select name="testPriority">
+              <option value="Low">Low</option>
+              <option value="Medium" selected>Medium</option>
+              <option value="High">High</option>
+            </select>
+            <input type="text" name="testNotes" placeholder="Notes (optional)" />
+          </div>
+        <% } %>
+      </div>
+      <p><button type="button" class="btn secondary" onclick="addTestRow()">+ Add test</button></p>
+
+      <div style="margin-top:14px"><button type="submit">Finalize visit &amp; notify patient</button></div>
     </form>
     <p class="muted" style="margin-top:12px">Finalizing marks the queue entry completed and emails the patient a visit summary (and prescription link, if any).</p>
   </div>
+
+  <% if (visit) { %>
+    <div class="card">
+      <h2 style="margin-top:0">Attachments</h2>
+      <p class="muted">Attach an image, PDF, or text file to this visit (max 5 MB).</p>
+      <form method="post" action="/visits/<%= visitId %>/attachments" enctype="multipart/form-data">
+        <input type="hidden" name="patientId" value="<%= summary && summary.patient ? summary.patient.id : '' %>" />
+        <input type="file" name="file" required />
+        <div style="margin-top:8px"><button type="submit">Upload</button></div>
+      </form>
+    </div>
+  <% } %>
 </main>
+<script>
+  function addRow(containerId, html){ var d=document.createElement('div'); d.className='grid3'; d.style.marginBottom='6px'; d.innerHTML=html; document.getElementById(containerId).appendChild(d); }
+  function addMedRow(){ addRow('meds', '<input type="text" name="medName" placeholder="Medication name" /><input type="text" name="medDosage" placeholder="Dosage e.g. 500mg" /><input type="text" name="medInstructions" placeholder="Instructions e.g. twice daily" />'); }
+  function addTestRow(){ addRow('tests', '<input type="text" name="testName" placeholder="Test name" /><select name="testPriority"><option value="Low">Low</option><option value="Medium" selected>Medium</option><option value="High">High</option></select><input type="text" name="testNotes" placeholder="Notes (optional)" />'); }
+</script>
 <%- include('partials/foot') %>

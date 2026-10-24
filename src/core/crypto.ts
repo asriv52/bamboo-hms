@@ -60,3 +60,29 @@ export function verifyPassword(password: string, stored: string): boolean {
 export function randomToken(bytes = 16): string {
   return crypto.randomBytes(bytes).toString('hex');
 }
+
+/**
+ * A short, human-friendly code for reading aloud / typing — used as a per-visit
+ * "receipt" access code (e.g. RCPT-7F3K9). Avoids ambiguous characters.
+ */
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I,O,0,1
+export function shortCode(prefix = 'RCPT', length = 5): string {
+  const bytes = crypto.randomBytes(length);
+  let out = '';
+  for (let i = 0; i < length; i++) {
+    out += CODE_ALPHABET[bytes[i] % CODE_ALPHABET.length];
+  }
+  return `${prefix}-${out}`;
+}
+
+/** A numeric one-time password (default 6 digits), returned as a string. */
+export function numericOtp(digits = 6): string {
+  const max = 10 ** digits;
+  const n = crypto.randomInt(0, max);
+  return n.toString().padStart(digits, '0');
+}
+
+/** HMAC-SHA256 of a value with the server secret — used to store OTP codes. */
+export function hmacCode(value: string): string {
+  return crypto.createHmac('sha256', KEY).update(value).digest('hex');
+}

@@ -31,7 +31,8 @@ export type TemplateName =
   | 'registration_confirmation'
   | 'visit_summary'
   | 'prescription_issued'
-  | 'staff_invite';
+  | 'staff_invite'
+  | 'access_otp';
 
 export function render(
   template: TemplateName,
@@ -72,6 +73,21 @@ export function render(
         toEmail
       );
       return { ...r, subject: 'A prescription was issued for you' };
+    }
+    case 'access_otp': {
+      const portal = `${config.publicBaseUrl}/portal`;
+      const r = wrap(
+        `Your one-time access code is ${payload.code}. ` +
+          `It expires in ${payload.minutes} minutes. Enter it at ${portal} to view your records. ` +
+          `If you did not request this, you can ignore this email.`,
+        `<p>Your one-time access code is:</p>` +
+          `<p style="font-size:24px;font-weight:700;letter-spacing:3px">${payload.code}</p>` +
+          `<p>It expires in <b>${payload.minutes} minutes</b>. ` +
+          `Enter it at <a href="${portal}">your records portal</a> to view your visit history.</p>` +
+          `<p style="color:#888;font-size:12px">If you did not request this, you can safely ignore this email.</p>`,
+        toEmail
+      );
+      return { ...r, subject: 'Your one-time access code' };
     }
     case 'staff_invite': {
       const link = `${config.publicBaseUrl}/invite/${payload.token}`;

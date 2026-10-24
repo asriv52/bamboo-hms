@@ -10,6 +10,8 @@ declare module 'express-session' {
     department?: string;
     roles?: Role[];
     activeRole?: Role;
+    /** Patient-portal session: the patient id this portal session may read. */
+    portalPatientId?: number;
   }
 }
 

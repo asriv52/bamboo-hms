@@ -53,6 +53,9 @@
       <% if (actor.activeRole === 'Pharmacy') { %>
         <a class="btn" href="/pharmacy/lookup">Look up a prescription</a>
       <% } %>
+      <% if (actor.activeRole === 'Technician') { %>
+        <a class="btn" href="/technician">Open lab tests</a>
+      <% } %>
     </div>
   </div>
 </main>

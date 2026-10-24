@@ -1,4 +1,4 @@
-export type Role = 'Admin' | 'Receptionist' | 'Doctor' | 'Pharmacy';
+export type Role = 'Admin' | 'Receptionist' | 'Doctor' | 'Pharmacy' | 'Technician';
 
 export type QueueStatus = 'Waiting' | 'InProgress' | 'Completed';
 export type VisitStatus = 'Open' | 'Finalized';
@@ -71,9 +71,50 @@ export interface Visit {
   doctorId: number;
   queueEntryId: number | null;
   facilityCode: string;
+  /** Short, human-friendly per-visit "receipt" code (e.g. RCPT-7F3K9). Unique. */
+  accessCode: string;
   diagnosis: string | null;
   notes: string | null;
   status: VisitStatus;
+  createdAt: string;
+}
+
+export type LabTestStatus = 'Pending' | 'Done';
+export type LabTestPriority = 'Low' | 'Medium' | 'High';
+
+export interface LabTest {
+  id: number;
+  visitId: number;
+  testName: string;
+  priority: LabTestPriority;
+  status: LabTestStatus;
+  notes: string | null;
+  result: string | null;
+  resultAttachmentId: number | null;
+  createdAt: string;
+}
+
+export interface Attachment {
+  id: number;
+  ownerType: 'visit';
+  visitId: number;
+  originalName: string;
+  storedName: string;
+  mime: string;
+  size: number;
+  uploadedByRole: string;
+  createdAt: string;
+}
+
+/** Email-delivered one-time password for patient-portal / record access. */
+export interface Otp {
+  id: number;
+  context: string;
+  targetEmail: string;
+  codeHash: string;
+  expiresAt: string;
+  consumedAt: string | null;
+  attempts: number;
   createdAt: string;
 }
 

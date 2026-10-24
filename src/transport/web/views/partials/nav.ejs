@@ -17,6 +17,9 @@
       <% if (actor.activeRole === 'Pharmacy') { %>
         <a href="/pharmacy/lookup">Pharmacy lookup</a>
       <% } %>
+      <% if (actor.activeRole === 'Technician') { %>
+        <a href="/technician">Lab tests</a>
+      <% } %>
       <a href="/notifications">Notifications</a>
     </nav>
     <span class="spacer"></span>

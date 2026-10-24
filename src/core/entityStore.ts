@@ -1,8 +1,13 @@
 import { db, nowUtc } from './db';
-import { decryptPII, encryptPII, hashPassword } from './crypto';
+import { decryptPII, encryptPII, hashPassword, shortCode } from './crypto';
 import {
+  Attachment,
   Facility,
+  LabTest,
+  LabTestPriority,
+  LabTestStatus,
   Medication,
+  Otp,
   Patient,
   Prescription,
   QueueEntry,
@@ -289,6 +294,7 @@ function rowToVisit(row: any): Visit {
     doctorId: row.doctor_id,
     queueEntryId: row.queue_entry_id,
     facilityCode: row.facility_code,
+    accessCode: row.access_code,
     diagnosis: row.diagnosis,
     notes: row.notes,
     status: row.status as VisitStatus,
@@ -302,16 +308,23 @@ export function createVisit(input: {
   queueEntryId: number | null;
   facilityCode: string;
 }): Visit {
+  // Generate a unique short access code. Collisions are astronomically unlikely
+  // but we retry a few times to be safe.
+  let accessCode = shortCode();
+  for (let i = 0; i < 5 && getVisitByAccessCode(accessCode); i++) {
+    accessCode = shortCode();
+  }
   const info = db
     .prepare(
-      `INSERT INTO visits (patient_id, doctor_id, queue_entry_id, facility_code, status, created_at)
-       VALUES (?, ?, ?, ?, 'Open', ?)`
+      `INSERT INTO visits (patient_id, doctor_id, queue_entry_id, facility_code, access_code, status, created_at)
+       VALUES (?, ?, ?, ?, ?, 'Open', ?)`
     )
     .run(
       input.patientId,
       input.doctorId,
       input.queueEntryId,
       input.facilityCode,
+      accessCode,
       nowUtc()
     );
   return getVisit(Number(info.lastInsertRowid))!;
@@ -319,6 +332,13 @@ export function createVisit(input: {
 
 export function getVisit(id: number): Visit | null {
   const row = db.prepare('SELECT * FROM visits WHERE id = ?').get(id);
+  return row ? rowToVisit(row) : null;
+}
+
+export function getVisitByAccessCode(code: string): Visit | null {
+  const row = db
+    .prepare('SELECT * FROM visits WHERE access_code = ?')
+    .get(code.trim().toUpperCase());
   return row ? rowToVisit(row) : null;
 }
 
@@ -566,4 +586,182 @@ export function listInvitesByFacility(facilityCode: string): StaffInvite[] {
     .prepare('SELECT * FROM staff_invites WHERE facility_code = ? ORDER BY id DESC')
     .all(facilityCode);
   return rows.map(rowToInvite);
+}
+
+// ---- Lab tests ------------------------------------------------------------
+
+function rowToLabTest(row: any): LabTest {
+  return {
+    id: row.id,
+    visitId: row.visit_id,
+    testName: row.test_name,
+    priority: row.priority as LabTestPriority,
+    status: row.status as LabTestStatus,
+    notes: row.notes,
+    result: row.result,
+    resultAttachmentId: row.result_attachment_id,
+    createdAt: row.created_at,
+  };
+}
+
+export function createLabTest(input: {
+  visitId: number;
+  testName: string;
+  priority: LabTestPriority;
+  notes: string | null;
+}): LabTest {
+  const info = db
+    .prepare(
+      `INSERT INTO lab_tests (visit_id, test_name, priority, status, notes, created_at)
+       VALUES (?, ?, ?, 'Pending', ?, ?)`
+    )
+    .run(input.visitId, input.testName, input.priority, input.notes, nowUtc());
+  return getLabTest(Number(info.lastInsertRowid))!;
+}
+
+export function getLabTest(id: number): LabTest | null {
+  const row = db.prepare('SELECT * FROM lab_tests WHERE id = ?').get(id);
+  return row ? rowToLabTest(row) : null;
+}
+
+export function listLabTestsForVisit(visitId: number): LabTest[] {
+  const rows = db
+    .prepare('SELECT * FROM lab_tests WHERE visit_id = ? ORDER BY id ASC')
+    .all(visitId);
+  return rows.map(rowToLabTest);
+}
+
+export function recordLabTestResult(
+  id: number,
+  result: string,
+  resultAttachmentId: number | null
+): void {
+  db.prepare(
+    `UPDATE lab_tests SET status = 'Done', result = ?, result_attachment_id = ? WHERE id = ?`
+  ).run(result, resultAttachmentId, id);
+}
+
+export function countPendingTestsByFacility(
+  facilityCode: string,
+  datePrefix?: string
+): number {
+  const base = `SELECT COUNT(*) as c FROM lab_tests t
+                JOIN visits v ON v.id = t.visit_id
+                WHERE v.facility_code = ? AND t.status = 'Pending'`;
+  const row = datePrefix
+    ? (db
+        .prepare(base + ' AND substr(t.created_at,1,10) = ?')
+        .get(facilityCode, datePrefix) as any)
+    : (db.prepare(base).get(facilityCode) as any);
+  return row.c;
+}
+
+// ---- Attachments ----------------------------------------------------------
+
+function rowToAttachment(row: any): Attachment {
+  return {
+    id: row.id,
+    ownerType: row.owner_type,
+    visitId: row.visit_id,
+    originalName: row.original_name,
+    storedName: row.stored_name,
+    mime: row.mime,
+    size: row.size,
+    uploadedByRole: row.uploaded_by_role,
+    createdAt: row.created_at,
+  };
+}
+
+export function createAttachment(input: {
+  visitId: number;
+  originalName: string;
+  storedName: string;
+  mime: string;
+  size: number;
+  uploadedByRole: string;
+}): Attachment {
+  const info = db
+    .prepare(
+      `INSERT INTO attachments (owner_type, visit_id, original_name, stored_name, mime, size, uploaded_by_role, created_at)
+       VALUES ('visit', ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      input.visitId,
+      input.originalName,
+      input.storedName,
+      input.mime,
+      input.size,
+      input.uploadedByRole,
+      nowUtc()
+    );
+  return getAttachment(Number(info.lastInsertRowid))!;
+}
+
+export function getAttachment(id: number): Attachment | null {
+  const row = db.prepare('SELECT * FROM attachments WHERE id = ?').get(id);
+  return row ? rowToAttachment(row) : null;
+}
+
+export function listAttachmentsForVisit(visitId: number): Attachment[] {
+  const rows = db
+    .prepare('SELECT * FROM attachments WHERE visit_id = ? ORDER BY id ASC')
+    .all(visitId);
+  return rows.map(rowToAttachment);
+}
+
+// ---- OTPs -----------------------------------------------------------------
+
+function rowToOtp(row: any): Otp {
+  return {
+    id: row.id,
+    context: row.context,
+    targetEmail: row.target_email,
+    codeHash: row.code_hash,
+    expiresAt: row.expires_at,
+    consumedAt: row.consumed_at,
+    attempts: row.attempts,
+    createdAt: row.created_at,
+  };
+}
+
+export function createOtp(input: {
+  context: string;
+  targetEmail: string;
+  codeHash: string;
+  expiresAt: string;
+}): Otp {
+  // Invalidate any prior un-consumed OTPs for the same context.
+  db.prepare(
+    `UPDATE otps SET consumed_at = ? WHERE context = ? AND consumed_at IS NULL`
+  ).run(nowUtc(), input.context);
+  const info = db
+    .prepare(
+      `INSERT INTO otps (context, target_email, code_hash, expires_at, attempts, created_at)
+       VALUES (?, ?, ?, ?, 0, ?)`
+    )
+    .run(input.context, input.targetEmail, input.codeHash, input.expiresAt, nowUtc());
+  return getOtp(Number(info.lastInsertRowid))!;
+}
+
+export function getOtp(id: number): Otp | null {
+  const row = db.prepare('SELECT * FROM otps WHERE id = ?').get(id);
+  return row ? rowToOtp(row) : null;
+}
+
+export function getLatestActiveOtp(context: string): Otp | null {
+  const row = db
+    .prepare(
+      `SELECT * FROM otps WHERE context = ? AND consumed_at IS NULL
+       ORDER BY id DESC LIMIT 1`
+    )
+    .get(context);
+  return row ? rowToOtp(row) : null;
+}
+
+export function incrementOtpAttempts(id: number): void {
+  db.prepare('UPDATE otps SET attempts = attempts + 1 WHERE id = ?').run(id);
+}
+
+export function consumeOtp(id: number): void {
+  db.prepare('UPDATE otps SET consumed_at = ? WHERE id = ?').run(nowUtc(), id);
 }
