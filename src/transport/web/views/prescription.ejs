@@ -1,0 +1,23 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <div class="no-print ok">Prescription created and emailed to the patient with a pharmacy lookup link.</div>
+  <div class="card">
+    <h1 style="margin-top:0">Prescription #<%= rx.id %></h1>
+    <p class="muted">Issued <%= rx.createdAt.slice(0,16).replace('T',' ') %> UTC · Patient ID <%= rx.patientId %></p>
+    <table>
+      <thead><tr><th>Medication</th><th>Dosage</th><th>Instructions</th></tr></thead>
+      <tbody>
+        <% rx.medications.forEach(function(m){ %>
+          <tr><td><%= m.name %></td><td><%= m.dosage || '—' %></td><td><%= m.instructions || '—' %></td></tr>
+        <% }); %>
+      </tbody>
+    </table>
+    <p class="muted">Pharmacy lookup token: <code><%= rx.pharmacyLookupToken %></code></p>
+    <div class="no-print row" style="margin-top:14px">
+      <button onclick="window.print()">Print</button>
+      <a class="btn secondary" href="/queue">Back to queue</a>
+    </div>
+  </div>
+</main>
+<%- include('partials/foot') %>

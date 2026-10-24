@@ -1,0 +1,34 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <h1>Today's queue</h1>
+  <div class="card">
+    <% if (entries.length === 0) { %>
+      <p class="muted">The queue is empty. Add a patient from the search page.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>#</th><th>Patient</th><th>Status</th><th>Added</th><th></th></tr></thead>
+        <tbody>
+          <% entries.forEach(function(e, i){ %>
+            <tr>
+              <td><%= i + 1 %></td>
+              <td><%= e.patient ? e.patient.name : ('#' + e.patientId) %></td>
+              <td><span class="pill <%= e.status %>"><%= e.status %></span></td>
+              <td class="muted"><%= e.createdAt.slice(11,16) %> UTC</td>
+              <td class="row">
+                <% if (actor.activeRole === 'Doctor' && e.status !== 'Completed') { %>
+                  <form method="post" action="/visits" style="margin:0">
+                    <input type="hidden" name="patientId" value="<%= e.patientId %>" />
+                    <input type="hidden" name="queueEntryId" value="<%= e.id %>" />
+                    <button type="submit">See patient</button>
+                  </form>
+                <% } %>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</main>
+<%- include('partials/foot') %>

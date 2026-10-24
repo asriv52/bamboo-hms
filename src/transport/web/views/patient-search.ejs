@@ -1,0 +1,45 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <h1>Find a patient</h1>
+  <div class="card">
+    <form method="get" action="/patients">
+      <div class="row">
+        <input type="text" name="q" value="<%= q %>" placeholder="Search by name, email, or patient ID" />
+        <button type="submit">Search</button>
+      </div>
+    </form>
+  </div>
+
+  <% if (q) { %>
+    <div class="card">
+      <% if (results.length === 0) { %>
+        <p class="muted">No matching patients.</p>
+      <% } else { %>
+        <table>
+          <thead><tr><th>ID</th><th>Name</th><th>Email</th><th></th></tr></thead>
+          <tbody>
+            <% results.forEach(function(p){ %>
+              <tr>
+                <td><%= p.id %></td>
+                <td><%= p.name %></td>
+                <td><%= p.email %></td>
+                <td class="row">
+                  <a class="btn secondary" href="/patients/<%= p.id %>">Open</a>
+                  <% if (actor.activeRole === 'Receptionist') { %>
+                    <form method="post" action="/queue" class="row" style="margin:0;align-items:center">
+                      <input type="hidden" name="patientId" value="<%= p.id %>" />
+                      <input type="text" name="department" value="<%= actor.department %>" title="Department" style="width:120px" />
+                      <button type="submit">Add to queue</button>
+                    </form>
+                  <% } %>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+  <% } %>
+</main>
+<%- include('partials/foot') %>

@@ -1,0 +1,26 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <h1>Register a patient</h1>
+  <div class="card">
+    <% if (error) { %><div class="error"><%= error %></div><% } %>
+    <form method="post" action="/patients">
+      <label>Email (used as the patient's identifier) *</label>
+      <input type="email" name="email" required />
+      <label>Full name *</label>
+      <input type="text" name="name" required />
+      <div class="grid3">
+        <div><label>Phone</label><input type="text" name="phone" placeholder="+15550100000" /></div>
+        <div><label>National ID</label><input type="text" name="nationalId" /></div>
+        <div><label>Blood type</label><input type="text" name="bloodType" placeholder="O+" /></div>
+      </div>
+      <label>Address</label>
+      <input type="text" name="address" />
+      <label>Known allergies</label>
+      <input type="text" name="allergies" />
+      <div style="margin-top:14px"><button type="submit">Register & email confirmation</button></div>
+    </form>
+    <p class="muted" style="margin-top:12px">A confirmation email is queued automatically. If email is down, registration still succeeds.</p>
+  </div>
+</main>
+<%- include('partials/foot') %>

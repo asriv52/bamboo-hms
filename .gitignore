@@ -28,6 +28,9 @@ yarn-error.log*
 *.sqlite
 *.sqlite3
 
+# Uploaded files (local file storage, synthetic demo data only)
+uploads/
+
 # Test / coverage output
 coverage/
 

@@ -1,0 +1,43 @@
+<%- include('partials/head') %>
+<%- include('partials/portal-nav') %>
+<main>
+  <h1>Welcome, <%= patient.name %></h1>
+  <p class="muted">Here is your full visit history. Each visit has its own receipt code. Select one to see details.</p>
+
+  <div class="card">
+    <div class="row">
+      <div class="stat"><div class="n"><%= visits.length %></div><div class="muted">Total visits</div></div>
+      <div class="stat"><div class="n"><%= visits.filter(function(v){return v.hasPrescription}).length %></div><div class="muted">With prescriptions</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Your visits &amp; receipts</h2>
+    <% if (visits.length === 0) { %>
+      <p class="muted">You don't have any recorded visits yet.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>Receipt</th><th>Date</th><th>Status</th><th>Summary</th><th></th></tr></thead>
+        <tbody>
+          <% visits.forEach(function(v){ %>
+            <tr>
+              <td><b><%= v.accessCode %></b></td>
+              <td><%= v.date %></td>
+              <td><span class="pill <%= v.status === 'Finalized' ? 'Completed' : 'InProgress' %>"><%= v.status %></span></td>
+              <td>
+                <%= v.diagnosis || '—' %>
+                <div class="muted">
+                  <% if (v.hasPrescription) { %>💊 prescription · <% } %>
+                  <% if (v.testCount) { %><%= v.testCount %> test(s) · <% } %>
+                  <% if (v.attachmentCount) { %><%= v.attachmentCount %> file(s)<% } %>
+                </div>
+              </td>
+              <td><a class="btn secondary" href="/portal/visits/<%= v.id %>">View</a></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</main>
+<%- include('partials/foot') %>

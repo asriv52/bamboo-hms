@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title><%= title %> — Rural Clinic HMS</title>
+  <style>
+    :root { --fg:#1b2a33; --muted:#5b7280; --line:#dfe6ea; --accent:#0a7d6b; --bg:#f6f9fa; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, sans-serif; color:var(--fg); background:var(--bg); }
+    header { background:#fff; border-bottom:1px solid var(--line); padding:12px 20px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+    header .brand { font-weight:700; color:var(--accent); }
+    header nav a { margin-right:14px; color:var(--fg); text-decoration:none; font-size:14px; }
+    header nav a:hover { text-decoration:underline; }
+    header .spacer { flex:1; }
+    header .who { font-size:13px; color:var(--muted); }
+    main { max-width:860px; margin:24px auto; padding:0 20px; }
+    h1 { font-size:22px; }
+    .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin-bottom:16px; }
+    label { display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
+    input, select, textarea { width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:14px; }
+    button, .btn { background:var(--accent); color:#fff; border:0; padding:9px 14px; border-radius:7px; font-size:14px; cursor:pointer; text-decoration:none; display:inline-block; }
+    button.secondary, .btn.secondary { background:#eef2f3; color:var(--fg); }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); }
+    .pill { font-size:12px; padding:2px 8px; border-radius:999px; background:#eef2f3; }
+    .pill.Waiting { background:#fff3cd; } .pill.InProgress { background:#cfe2ff; } .pill.Completed { background:#d1e7dd; }
+    .pill.prio-Low { background:#e2e8f0; } .pill.prio-Medium { background:#fde9c8; } .pill.prio-High { background:#f8c9c9; }
+    .code { font-family: ui-monospace, Menlo, Consolas, monospace; background:#eef2f3; padding:2px 8px; border-radius:6px; letter-spacing:1px; }
+    .error { background:#fde8e8; border:1px solid #f5b5b5; color:#8a1f1f; padding:10px 12px; border-radius:7px; margin-bottom:12px; }
+    .ok { background:#d1e7dd; border:1px solid #a3cfbb; color:#0f5132; padding:10px 12px; border-radius:7px; margin-bottom:12px; }
+    .muted { color:var(--muted); font-size:13px; }
+    .stat { display:inline-block; min-width:150px; margin:8px 16px 8px 0; }
+    .stat .n { font-size:30px; font-weight:700; color:var(--accent); }
+    .row { display:flex; gap:10px; flex-wrap:wrap; }
+    .grid3 { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; }
+    @media print { header, .no-print { display:none; } }
+  </style>
+</head>
+<body>

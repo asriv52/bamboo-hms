@@ -1,0 +1,25 @@
+<%- include('partials/head') %>
+<header><span class="brand">Rural Clinic HMS</span></header>
+<main>
+  <h1>Sign in</h1>
+  <div class="card">
+    <% if (error) { %><div class="error"><%= error %></div><% } %>
+    <form method="post" action="/login">
+      <label>Email</label>
+      <input type="email" name="email" autocomplete="username" required />
+      <label>Password</label>
+      <input type="password" name="password" autocomplete="current-password" required />
+      <div style="margin-top:14px"><button type="submit">Sign in</button></div>
+    </form>
+    <p class="muted" style="margin-top:14px">
+      Demo logins (password <b>demo1234</b>): admin@clinic.test, reception@clinic.test,
+      doctor@clinic.test, pharmacy@clinic.test, technician@clinic.test, multi@clinic.test
+    </p>
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0;font-size:16px">Are you a patient?</h2>
+    <p class="muted">View your own visit history and prescriptions with an email access code — no password needed.</p>
+    <a class="btn secondary" href="/portal">Go to your records portal</a>
+  </div>
+</main>
+<%- include('partials/foot') %>

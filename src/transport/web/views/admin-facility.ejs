@@ -1,0 +1,25 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <h1>Facility information</h1>
+  <% if (saved) { %><div class="ok">Facility information saved.</div><% } %>
+  <% if (error) { %><div class="error"><%= error %></div><% } %>
+  <div class="card">
+    <form method="post" action="/admin/facility">
+      <p class="muted">Facility code: <b><%= actor.facilityCode %></b></p>
+      <label>Facility name *</label>
+      <input type="text" name="name" value="<%= facility ? facility.name : '' %>" required />
+      <div class="row">
+        <div style="flex:1"><label>Phone</label><input type="text" name="phone" value="<%= facility && facility.phone ? facility.phone : '' %>" /></div>
+        <div style="flex:2"><label>Address</label><input type="text" name="address" value="<%= facility && facility.address ? facility.address : '' %>" /></div>
+      </div>
+      <label>Departments * (comma-separated)</label>
+      <input type="text" name="departments" value="<%= facility ? facility.departments.join(', ') : 'General, Pharmacy' %>" />
+      <label>Specialties</label>
+      <textarea name="specialties" rows="3"><%= facility && facility.specialties ? facility.specialties : '' %></textarea>
+      <div style="margin-top:14px"><button type="submit">Save facility info</button></div>
+    </form>
+    <p class="muted" style="margin-top:12px">Departments defined here drive the dashboard breakdown and the staff/queue department options.</p>
+  </div>
+</main>
+<%- include('partials/foot') %>

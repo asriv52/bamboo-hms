@@ -1,0 +1,28 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <h1>Email notifications</h1>
+  <p class="muted">Demo view of the notification queue. With EMAIL_PROVIDER=console, email bodies are printed to the server log. Failed sends stay queued and are retried.</p>
+  <div class="card">
+    <% if (jobs.length === 0) { %>
+      <p class="muted">No notifications yet.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>#</th><th>Template</th><th>To</th><th>Status</th><th>Attempts</th><th>When</th></tr></thead>
+        <tbody>
+          <% jobs.forEach(function(j){ %>
+            <tr>
+              <td><%= j.id %></td>
+              <td><%= j.template %></td>
+              <td><%= j.toEmail %></td>
+              <td><span class="pill"><%= j.status %></span></td>
+              <td><%= j.attempts %></td>
+              <td class="muted"><%= j.createdAt.slice(0,16).replace('T',' ') %></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</main>
+<%- include('partials/foot') %>

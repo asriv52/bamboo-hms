@@ -1,0 +1,16 @@
+<%- include('partials/head') %>
+<header><span class="brand">Rural Clinic HMS</span></header>
+<main>
+  <h1>Choose your role for this session</h1>
+  <div class="card">
+    <p class="muted">Your account holds more than one role. Pick the one you are acting in now.</p>
+    <form method="post" action="/select-role">
+      <label>Active role</label>
+      <select name="role">
+        <% roles.forEach(function(r){ %><option value="<%= r %>"><%= r %></option><% }); %>
+      </select>
+      <div style="margin-top:14px"><button type="submit">Continue</button></div>
+    </form>
+  </div>
+</main>
+<%- include('partials/foot') %>

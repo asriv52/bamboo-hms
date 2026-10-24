@@ -1,0 +1,42 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <h1>Pharmacy lookup</h1>
+  <% if (dispensed) { %><div class="ok">Dispensing recorded.</div><% } %>
+  <div class="card">
+    <form method="get" action="/pharmacy/lookup">
+      <label>Prescription lookup token (from the patient's email)</label>
+      <div class="row">
+        <input type="text" name="token" value="<%= token %>" placeholder="Paste the token / link code" />
+        <button type="submit">Look up</button>
+      </div>
+    </form>
+    <% if (error) { %><div class="error" style="margin-top:12px"><%= error %></div><% } %>
+  </div>
+
+  <% if (view) { %>
+    <div class="card">
+      <h2 style="margin-top:0">Active medication plan</h2>
+      <p class="muted">Patient: <b><%= view.patientName %></b> · Prescription #<%= view.prescriptionId %></p>
+      <p class="muted">You can see the active plan only — diagnoses and clinical notes are not shared with the pharmacy.</p>
+      <table>
+        <thead><tr><th>Medication</th><th>Dosage</th><th>Instructions</th></tr></thead>
+        <tbody>
+          <% view.medications.forEach(function(m){ %>
+            <tr><td><%= m.name %></td><td><%= m.dosage || '—' %></td><td><%= m.instructions || '—' %></td></tr>
+          <% }); %>
+        </tbody>
+      </table>
+      <form method="post" action="/pharmacy/dispense" style="margin-top:12px">
+        <input type="hidden" name="prescriptionId" value="<%= view.prescriptionId %>" />
+        <input type="hidden" name="token" value="<%= token %>" />
+        <label>Record a dispensing (what was given)</label>
+        <div class="row">
+          <input type="text" name="itemsDispensed" placeholder="e.g. Amoxicillin 500mg x14" />
+          <button type="submit">Record dispensing</button>
+        </div>
+      </form>
+    </div>
+  <% } %>
+</main>
+<%- include('partials/foot') %>

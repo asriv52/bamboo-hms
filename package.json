@@ -1,0 +1,38 @@
+{
+  "name": "hackachusetts-healthcare-project",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hospital Management System for rural / low-resource clinics (Hackachusetts).",
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc && npm run copy-views",
+    "copy-views": "mkdir -p dist/transport/web && cp -r src/transport/web/views dist/transport/web/views",
+    "seed": "ts-node src/seed.ts",
+    "predev": "npm run seed",
+    "dev": "ts-node src/server.ts",
+    "start": "node dist/server.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.0",
+    "cookie-parser": "^1.4.6",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "multer": "2.5.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/cookie-parser": "^1.4.7",
+    "@types/express": "^4.17.21",
+    "@types/express-session": "^1.18.0",
+    "@types/multer": "^2.3.0",
+    "@types/node": "^22.5.0",
+    "@types/supertest": "^6.0.2",
+    "supertest": "^7.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  }
+}

@@ -1,0 +1,62 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <h1>Welcome, <%= actor.name %></h1>
+  <p class="muted">Acting as <b><%= actor.activeRole %></b> at <b><%= actor.facilityCode %></b>.</p>
+
+  <% if (actor.activeRole === 'Admin' && stats) { %>
+    <div class="card">
+      <h2 style="margin-top:0">Today's activity by department</h2>
+      <p class="muted">Aggregate counts only — no patient information is shown to admins.</p>
+      <table>
+        <thead><tr><th>Department</th><th>Registered</th><th>In queue</th><th>Visits completed</th></tr></thead>
+        <tbody>
+          <% if (stats.departments.length === 0) { %>
+            <tr><td colspan="4" class="muted">No departments defined yet. Add them under Facility.</td></tr>
+          <% } %>
+          <% stats.departments.forEach(function(d){ %>
+            <tr>
+              <td><%= d.department %></td>
+              <td><%= d.registeredToday %></td>
+              <td><%= d.inQueue %></td>
+              <td><%= d.visitsCompleted %></td>
+            </tr>
+          <% }); %>
+        </tbody>
+        <tfoot>
+          <tr style="font-weight:700">
+            <td>Total</td>
+            <td><%= stats.totals.registeredToday %></td>
+            <td><%= stats.totals.inQueue %></td>
+            <td><%= stats.totals.visitsCompleted %></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  <% } %>
+
+  <div class="card">
+    <h2 style="margin-top:0">Quick actions</h2>
+    <div class="row">
+      <% if (actor.activeRole === 'Receptionist') { %>
+        <a class="btn" href="/patients/new">Register a patient</a>
+        <a class="btn secondary" href="/queue">View queue</a>
+      <% } %>
+      <% if (actor.activeRole === 'Admin') { %>
+        <a class="btn" href="/admin/staff">Invite & manage staff</a>
+        <a class="btn secondary" href="/admin/facility">Edit facility info</a>
+      <% } %>
+      <% if (actor.activeRole === 'Doctor') { %>
+        <a class="btn" href="/queue">Open the queue</a>
+        <a class="btn secondary" href="/patients">Find a patient</a>
+      <% } %>
+      <% if (actor.activeRole === 'Pharmacy') { %>
+        <a class="btn" href="/pharmacy/lookup">Look up a prescription</a>
+      <% } %>
+      <% if (actor.activeRole === 'Technician') { %>
+        <a class="btn" href="/technician">Open lab tests</a>
+      <% } %>
+    </div>
+  </div>
+</main>
+<%- include('partials/foot') %>

@@ -1,0 +1,13 @@
+<header>
+  <span class="brand">Your Health Records</span>
+  <% if (typeof patient !== 'undefined' && patient) { %>
+    <nav>
+      <a href="/portal/home">My visits</a>
+    </nav>
+    <span class="spacer"></span>
+    <span class="who"><%= patient.name %></span>
+    <form method="post" action="/portal/logout" style="margin:0">
+      <button class="secondary" type="submit">Sign out</button>
+    </form>
+  <% } %>
+</header>

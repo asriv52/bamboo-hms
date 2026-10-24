@@ -1,0 +1,70 @@
+<%- include('partials/head') %>
+<%- include('partials/portal-nav') %>
+<main>
+  <p class="muted"><a href="/portal/home">← Back to my visits</a></p>
+  <h1>Visit <%= detail.visit.accessCode %></h1>
+  <p class="muted">Date: <%= detail.visit.createdAt.slice(0,10) %> · Status: <%= detail.visit.status %></p>
+
+  <div class="card">
+    <h2 style="margin-top:0">Summary</h2>
+    <p><b>Diagnosis:</b> <%= detail.visit.diagnosis || 'Not recorded' %></p>
+    <p><b>Notes:</b> <%= detail.visit.notes || 'None' %></p>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Prescription</h2>
+    <% if (detail.prescription) { %>
+      <table>
+        <thead><tr><th>Medication</th><th>Dosage</th><th>Instructions</th></tr></thead>
+        <tbody>
+          <% detail.prescription.medications.forEach(function(m){ %>
+            <tr><td><%= m.name %></td><td><%= m.dosage %></td><td><%= m.instructions %></td></tr>
+          <% }); %>
+        </tbody>
+      </table>
+      <p class="muted">This is your current active medication plan.</p>
+    <% } else { %>
+      <p class="muted">No prescription was issued for this visit.</p>
+    <% } %>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Tests</h2>
+    <% if (detail.tests.length === 0) { %>
+      <p class="muted">No tests were ordered for this visit.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>Test</th><th>Priority</th><th>Status</th><th>Result</th></tr></thead>
+        <tbody>
+          <% detail.tests.forEach(function(t){ %>
+            <tr>
+              <td><%= t.testName %></td>
+              <td><span class="pill prio-<%= t.priority %>"><%= t.priority %></span></td>
+              <td><span class="pill <%= t.status === 'Done' ? 'Completed' : 'Waiting' %>"><%= t.status %></span></td>
+              <td>
+                <%= t.result || '—' %>
+                <% if (t.resultAttachmentId) { %>
+                  · <a href="/portal/attachments/<%= t.resultAttachmentId %>" target="_blank">download</a>
+                <% } %>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Attachments</h2>
+    <% if (detail.attachments.length === 0) { %>
+      <p class="muted">No files are attached to this visit.</p>
+    <% } else { %>
+      <ul>
+        <% detail.attachments.forEach(function(a){ %>
+          <li><a href="/portal/attachments/<%= a.id %>" target="_blank"><%= a.originalName %></a> <span class="muted">(<%= a.uploadedByRole %>)</span></li>
+        <% }); %>
+      </ul>
+    <% } %>
+  </div>
+</main>
+<%- include('partials/foot') %>

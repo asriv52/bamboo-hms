@@ -1,0 +1,57 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <h1>Lab tests</h1>
+  <p class="muted">Enter a visit's receipt code to see its recommended tests and record results. You will not see the patient's diagnosis or clinical notes — only the tests.</p>
+
+  <% if (saved) { %><div class="ok">Result saved. The test is marked done.</div><% } %>
+
+  <div class="card">
+    <form method="get" action="/technician" class="row" style="align-items:flex-end">
+      <div style="flex:1">
+        <label>Receipt code</label>
+        <input type="text" name="code" value="<%= code %>" placeholder="e.g. RCPT-7F3K9" />
+      </div>
+      <div><button type="submit">Look up</button></div>
+    </form>
+    <% if (error) { %><div class="error" style="margin-top:12px"><%= error %></div><% } %>
+  </div>
+
+  <% if (view) { %>
+    <div class="card">
+      <h2 style="margin-top:0">Receipt <%= view.accessCode %></h2>
+      <% if (view.tests.length === 0) { %>
+        <p class="muted">No tests were recommended for this visit.</p>
+      <% } else { %>
+        <table>
+          <thead><tr><th>Test</th><th>Priority</th><th>Status</th><th>Result</th></tr></thead>
+          <tbody>
+            <% view.tests.forEach(function(t){ %>
+              <tr>
+                <td><b><%= t.testName %></b><% if (t.notes) { %><br/><span class="muted"><%= t.notes %></span><% } %></td>
+                <td><span class="pill prio-<%= t.priority %>"><%= t.priority %></span></td>
+                <td><span class="pill <%= t.status === 'Done' ? 'Completed' : 'Waiting' %>"><%= t.status %></span></td>
+                <td>
+                  <% if (t.status === 'Done') { %>
+                    <%= t.result %>
+                    <% if (t.resultAttachmentId) { %>
+                      · <a href="/attachments/<%= t.resultAttachmentId %>" target="_blank">file</a>
+                    <% } %>
+                  <% } else { %>
+                    <form method="post" action="/technician/tests/<%= t.id %>/result" enctype="multipart/form-data">
+                      <input type="hidden" name="code" value="<%= view.accessCode %>" />
+                      <input type="text" name="result" placeholder="Result summary" required />
+                      <input type="file" name="file" style="margin-top:6px" />
+                      <div style="margin-top:6px"><button type="submit">Save result</button></div>
+                    </form>
+                  <% } %>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+  <% } %>
+</main>
+<%- include('partials/foot') %>
