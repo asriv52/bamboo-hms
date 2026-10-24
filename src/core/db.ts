@@ -172,7 +172,6 @@ export function initSchema(): void {
       created_at TEXT NOT NULL
     );
 
-<<<<<<< HEAD
     -- Hospital beds/rooms. Status drives the "seat-map" availability view.
     CREATE TABLE IF NOT EXISTS beds (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -184,36 +183,6 @@ export function initSchema(): void {
       updated_at TEXT NOT NULL
     );
 
-    -- Equipment inventory with status and the room it currently lives in.
-    CREATE TABLE IF NOT EXISTS equipment (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      facility_code TEXT NOT NULL,
-      name TEXT NOT NULL,             -- e.g. 'Ventilator', 'ECG monitor'
-      room TEXT NOT NULL,             -- room it is located in
-      status TEXT NOT NULL DEFAULT 'Operational', -- 'Operational'|'InUse'|'Maintenance'|'Broken'
-      updated_at TEXT NOT NULL
-    );
-  `);
-
-  runMigrations();
-}
-
-/**
- * Lightweight, idempotent migrations for databases created before a column was
- * added. CREATE TABLE IF NOT EXISTS never alters an existing table, so new
- * columns on existing tables are added here. Each step checks first and is safe
- * to run on every startup.
- */
-function runMigrations(): void {
-  addColumnIfMissing('visits', 'bed_id', 'INTEGER REFERENCES beds(id)');
-}
-
-/** Add a column to a table only if it does not already exist. */
-function addColumnIfMissing(table: string, column: string, definition: string): void {
-  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
-  if (cols.some((c) => c.name === column)) return;
-  db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-=======
     -- Categorized EHR entries. Category drives technician specialty scoping.
     CREATE TABLE IF NOT EXISTS ehr_records (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -328,7 +297,7 @@ function addColumnIfMissing(table: string, column: string, definition: string): 
       facility_code TEXT NOT NULL,
       name TEXT NOT NULL,
       category TEXT NOT NULL,         -- EHR category, or 'General'
-      location TEXT,
+      location TEXT,                  -- room label, e.g. 'ER-1'
       status TEXT NOT NULL,           -- 'Operational' | 'InUse' | 'Maintenance' | 'OutOfService'
       updated_at TEXT NOT NULL
     );
@@ -350,6 +319,9 @@ function addColumnIfMissing(table: string, column: string, definition: string): 
   ensureColumn('staff_users', 'license_number', 'TEXT');
   ensureColumn('staff_invites', 'specialty', 'TEXT');
   ensureColumn('dispensing_records', 'patient_id', 'INTEGER');
+  ensureColumn('visits', 'bed_id', 'INTEGER REFERENCES beds(id)');
+  ensureColumn('equipment', 'category', "TEXT NOT NULL DEFAULT 'General'");
+  ensureColumn('equipment', 'location', 'TEXT');
 }
 
 /** Add a column to an existing table if it is missing (idempotent). */
@@ -358,7 +330,6 @@ function ensureColumn(table: string, column: string, ddl: string): void {
   if (!cols.some((c) => c.name === column)) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
   }
->>>>>>> 6cbf91ef6a5b3ebde990e101ed39dd1a43bc4572
 }
 
 export function nowUtc(): string {

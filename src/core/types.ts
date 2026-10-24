@@ -341,17 +341,6 @@ export interface Bed {
   updatedAt: string;
 }
 
-export type EquipmentStatus = 'Operational' | 'InUse' | 'Maintenance' | 'Broken';
-
-export interface Equipment {
-  id: number;
-  facilityCode: string;
-  name: string;
-  room: string;
-  status: EquipmentStatus;
-  updatedAt: string;
-}
-
 /**
  * Who currently occupies a bed, derived from the open visit assigned to it.
  * Used by the receptionist occupancy board to direct visitors — it carries

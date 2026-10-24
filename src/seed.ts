@@ -2,14 +2,13 @@ import { db, initSchema } from './core/db';
 import {
   createAttachment,
   createBed,
-  createEquipment,
+  createGrant,
   createLabTest,
   createPatient,
   createPrescription,
   createStaffUser,
   createVisit,
   finalizeVisit,
-  getPatientByEmail,
   getStaffByEmail,
   listBedsByFacility,
   recordLabTestResult,
@@ -63,7 +62,6 @@ export const RESET_SQL = `
     DELETE FROM audit_records;
     DELETE FROM notification_jobs;
     DELETE FROM beds;
-    DELETE FROM equipment;
     DELETE FROM patients;
     DELETE FROM staff_users;
     DELETE FROM staff_invites;
@@ -134,17 +132,21 @@ function seed(): void {
     listBedsByFacility(FACILITY).map((b) => [`${b.room}-${b.label}`, b])
   );
 
-  // Equipment inventory with mixed statuses and their rooms.
-  const equipmentPlan: Array<{ name: string; room: string; status: any }> = [
-    { name: 'Ventilator', room: 'ER-1', status: 'InUse' },
-    { name: 'Defibrillator', room: 'ER-1', status: 'Operational' },
-    { name: 'ECG monitor', room: 'ER-2', status: 'Operational' },
-    { name: 'X-ray machine', room: 'R-103', status: 'Maintenance' },
-    { name: 'Infusion pump', room: 'R-101', status: 'Operational' },
-    { name: 'Ultrasound scanner', room: 'R-102', status: 'Broken' },
+  // Equipment inventory. Category drives technician specialty scoping;
+  // location is the room label so the receptionist board can link equipment
+  // to the patients in that room.
+  const equipmentPlan: Array<{ name: string; category: string; room: string; status: any }> = [
+    { name: 'Ventilator', category: 'General', room: 'ER-1', status: 'InUse' },
+    { name: 'Defibrillator', category: 'Cardiac', room: 'ER-1', status: 'Operational' },
+    { name: 'ECG monitor', category: 'Cardiac', room: 'ER-2', status: 'Operational' },
+    { name: 'X-ray machine', category: 'Orthopedic', room: 'R-103', status: 'Maintenance' },
+    { name: 'Infusion pump', category: 'General', room: 'R-101', status: 'Operational' },
+    { name: 'Ultrasound scanner', category: 'General', room: 'R-102', status: 'OutOfService' },
+    { name: 'Hematology analyzer', category: 'Laboratory', room: 'Laboratory', status: 'InUse' },
+    { name: 'Oxygen concentrator', category: 'General', room: 'Ward A', status: 'Operational' },
   ];
   for (const e of equipmentPlan) {
-    createEquipment({ facilityCode: FACILITY, name: e.name, room: e.room, status: e.status });
+    createEquipment({ facilityCode: FACILITY, name: e.name, category: e.category, location: e.room, status: e.status });
   }
 
   // Staff logins (synthetic). One multi-role account to demo role selection.
@@ -196,10 +198,6 @@ function seed(): void {
   createRoom({ facilityCode: FACILITY, name: 'Exam 1', roomType: 'Exam', status: 'Available' });
   createRoom({ facilityCode: FACILITY, name: 'Exam 2', roomType: 'Exam', status: 'Occupied' });
   createRoom({ facilityCode: FACILITY, name: 'Ward A', roomType: 'Ward', status: 'Cleaning' });
-  createEquipment({ facilityCode: FACILITY, name: 'Portable X-ray', category: 'Orthopedic', location: 'Orthopedics', status: 'Operational' });
-  createEquipment({ facilityCode: FACILITY, name: 'ECG machine', category: 'Cardiac', location: 'General Medicine', status: 'Maintenance' });
-  createEquipment({ facilityCode: FACILITY, name: 'Hematology analyzer', category: 'Laboratory', location: 'Laboratory', status: 'InUse' });
-  createEquipment({ facilityCode: FACILITY, name: 'Oxygen concentrator', category: 'General', location: 'Ward A', status: 'Operational' });
   upsertFacilityAccommodation({ facilityCode: FACILITY, accommodation: 'Wheelchair access', capacity: 4, inUse: 1 });
   upsertFacilityAccommodation({ facilityCode: FACILITY, accommodation: 'Language translator', capacity: 2, inUse: 2 });
   upsertFacilityAccommodation({ facilityCode: FACILITY, accommodation: 'Ground-floor access', capacity: 10, inUse: 3 });
@@ -257,11 +255,33 @@ function seed(): void {
   createLabTest({ visitId: v2.id, testName: 'Complete Blood Count', priority: 'High', notes: 'Fasting not required.' });
   const doneTest = createLabTest({ visitId: v2.id, testName: 'Iron Panel', priority: 'Medium', notes: null });
   recordLabTestResult(doneTest.id, 'Within normal range.', null);
+  const rx2 = createPrescription({
+    visitId: v2.id,
+    patientId: jordan.id,
+    medications: [{ name: 'Ferrous Sulfate', dosage: '200mg', instructions: 'Once daily with food', daysSupply: 30 }],
+    pharmacyLookupToken: randomToken(),
+  });
+  insertCharge({
+    patientId: jordan.id, facilityCode: FACILITY, source: 'Visit', sourceId: v2.id,
+    description: 'Consultation', amountCents: 1500, insuranceCents: 750, patientCents: 750,
+    referringFacilityCode: null, status: 'Outstanding',
+  });
+
+  // Categorized EHR: technicians only ever see their specialty's entries.
+  createEhrRecord({ patientId: jordan.id, visitId: v2.id, facilityCode: FACILITY, category: 'General', title: 'Annual check', content: 'BP 118/76, weight stable.', authorId: doctor.id });
+  createEhrRecord({ patientId: jordan.id, visitId: null, facilityCode: FACILITY, category: 'Orthopedic', title: 'Left wrist sprain (2025)', content: 'Healed; full range of motion.', authorId: doctor.id });
+  createEhrRecord({ patientId: jordan.id, visitId: null, facilityCode: FACILITY, category: 'Cardiac', title: 'ECG baseline', content: 'Normal sinus rhythm.', authorId: doctor.id });
+  assignTechnician(boneTech.id, jordan.id, doctor.id);
+
+  // Appointments: one upcoming, one past. A patient grant to the second doctor.
+  createAppointment({ patientId: jordan.id, doctorId: doctor.id, facilityCode: FACILITY, scheduledAt: daysFromNow(3), reason: 'Anemia follow-up' });
+  createAppointment({ patientId: mina.id, doctorId: doctor.id, facilityCode: FACILITY, scheduledAt: daysFromNow(5, 11), reason: 'New patient check-up' });
+  createGrant({ patientId: jordan.id, doctorId: doctor2.id, grantedBy: 'patient', expiresAt: daysFromNow(30) });
+
 
   // Occupancy demo: two OPEN visits assigned to beds, so the receptionist's
   // availability board shows which patient + doctor is at which bed/room. These
   // visits are left Open (not finalized) so they count as current occupancy.
-  const mina = getPatientByEmail('mina.patient@example.test')!;
   const regBed = bedByKey.get('R-101-B'); // in the Regular ward
   const erBed = bedByKey.get('ER-1-A');   // in the Emergency ward
   if (regBed) {

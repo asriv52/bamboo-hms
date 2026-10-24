@@ -9,17 +9,17 @@ import {
   getStaffById,
   listBedOccupancyByFacility,
   listBedsByFacility,
-  listEquipmentByFacility,
   listPatients,
   listStaffByFacility,
   updateBedStatus,
-  updateEquipmentStatus,
 } from '../../core/entityStore';
+import { getEquipment, listEquipment, setEquipmentStatus as storeSetEquipmentStatus } from '../../core/opsStore';
 import {
   Actor,
   Bed,
   BedOccupancy,
   BedStatus,
+  EQUIPMENT_STATUSES,
   Equipment,
   EquipmentStatus,
   Patient,
@@ -50,12 +50,6 @@ const BED_STATUSES: BedStatus[] = [
   'OutOfService',
 ];
 
-const EQUIPMENT_STATUSES: EquipmentStatus[] = [
-  'Operational',
-  'InUse',
-  'Maintenance',
-  'Broken',
-];
 
 /** A bed plus who is in it (if anyone), for the occupancy board. */
 export interface BedView {
@@ -124,7 +118,7 @@ export function getAvailability(actor: Actor): AvailabilityView {
   requireRole(actor, 'Receptionist');
 
   const beds = listBedsByFacility(actor.facilityCode);
-  const equipment = listEquipmentByFacility(actor.facilityCode);
+  const equipment = listEquipment(actor.facilityCode);
   const occupancy = listBedOccupancyByFacility(actor.facilityCode);
   const occByBed = new Map<number, BedOccupancy>(occupancy.map((o) => [o.bedId, o]));
 
@@ -169,7 +163,7 @@ export function getAvailability(actor: Actor): AvailabilityView {
 
   const equipmentView: EquipmentView[] = equipment.map((e) => ({
     equipment: e,
-    roomOccupants: roomOccupants.get(e.room) ?? [],
+    roomOccupants: (e.location ? roomOccupants.get(e.location) : undefined) ?? [],
   }));
 
   const totals = {
@@ -214,7 +208,7 @@ export function getAvailability(actor: Actor): AvailabilityView {
     wards,
     equipment: equipmentView,
     bedStatuses: BED_STATUSES,
-    equipmentStatuses: EQUIPMENT_STATUSES,
+    equipmentStatuses: [...EQUIPMENT_STATUSES],
     totals,
     distribution,
     patientOptions,
@@ -345,14 +339,13 @@ export function setEquipmentStatus(
   if (!EQUIPMENT_STATUSES.includes(status as EquipmentStatus)) {
     throw new ValidationError('Unknown equipment status.');
   }
-  const updated = updateEquipmentStatus(
-    actor.facilityCode,
-    equipmentId,
-    status as EquipmentStatus
-  );
-  if (!updated) {
+  // Same error for missing and other-facility equipment so ids never leak.
+  const existing = getEquipment(equipmentId);
+  if (!existing || existing.facilityCode !== actor.facilityCode) {
     throw new ValidationError('That equipment could not be updated.');
   }
+  storeSetEquipmentStatus(equipmentId, status as EquipmentStatus);
+  const updated = getEquipment(equipmentId)!;
   recordAudit({
     actor,
     action: 'equipment_status_update',

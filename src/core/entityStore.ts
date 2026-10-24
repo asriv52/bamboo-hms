@@ -3,15 +3,10 @@ import { decryptPII, encryptPII, hashPassword, shortCode } from './crypto';
 import {
   AccessGrant,
   Attachment,
-<<<<<<< HEAD
   Bed,
   BedStatus,
-  Equipment,
-  EquipmentStatus,
-=======
   DispensingRecord,
   EhrCategory,
->>>>>>> 6cbf91ef6a5b3ebde990e101ed39dd1a43bc4572
   Facility,
   FacilityKind,
   LabTest,
@@ -738,7 +733,6 @@ export function getFacility(code: string): Facility | null {
   return row ? rowToFacility(row) : null;
 }
 
-<<<<<<< HEAD
 // ---- Beds / rooms ---------------------------------------------------------
 
 function rowToBed(row: any): Bed {
@@ -805,72 +799,11 @@ export function updateBedStatus(
   return bed && bed.facilityCode === facilityCode ? bed : null;
 }
 
-// ---- Equipment ------------------------------------------------------------
-
-function rowToEquipment(row: any): Equipment {
-  return {
-    id: row.id,
-    facilityCode: row.facility_code,
-    name: row.name,
-    room: row.room,
-    status: row.status,
-    updatedAt: row.updated_at,
-  };
-}
-
-export function listEquipmentByFacility(facilityCode: string): Equipment[] {
-  const rows = db
-    .prepare(
-      `SELECT * FROM equipment WHERE facility_code = ?
-       ORDER BY room ASC, name ASC`
-    )
-    .all(facilityCode);
-  return rows.map(rowToEquipment);
-}
-
-export function getEquipment(id: number): Equipment | null {
-  const row = db.prepare('SELECT * FROM equipment WHERE id = ?').get(id);
-  return row ? rowToEquipment(row) : null;
-}
-
-export function createEquipment(input: {
-  facilityCode: string;
-  name: string;
-  room: string;
-  status?: EquipmentStatus;
-}): Equipment {
-  const info = db
-    .prepare(
-      `INSERT INTO equipment (facility_code, name, room, status, updated_at)
-       VALUES (?, ?, ?, ?, ?)`
-    )
-    .run(
-      input.facilityCode,
-      input.name,
-      input.room,
-      input.status ?? 'Operational',
-      nowUtc()
-    );
-  return getEquipment(Number(info.lastInsertRowid))!;
-}
-
-export function updateEquipmentStatus(
-  facilityCode: string,
-  id: number,
-  status: EquipmentStatus
-): Equipment | null {
-  db.prepare(
-    `UPDATE equipment SET status = ?, updated_at = ? WHERE id = ? AND facility_code = ?`
-  ).run(status, nowUtc(), id, facilityCode);
-  const eq = getEquipment(id);
-  return eq && eq.facilityCode === facilityCode ? eq : null;
-=======
 export function listFacilities(kind?: FacilityKind): Facility[] {
   const rows = kind
     ? db.prepare('SELECT * FROM facilities WHERE kind = ? ORDER BY name ASC').all(kind)
     : db.prepare('SELECT * FROM facilities ORDER BY name ASC').all();
   return (rows as any[]).map(rowToFacility);
->>>>>>> 6cbf91ef6a5b3ebde990e101ed39dd1a43bc4572
 }
 
 // ---- Staff invites --------------------------------------------------------
