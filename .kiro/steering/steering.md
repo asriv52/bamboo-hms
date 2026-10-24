@@ -31,6 +31,7 @@ All entities are identified by at least one piece of **personally identifiable i
 | Pharmacy | Pharmacy code | Name, address, phone, email |
 | Ambulance | Unit ID | Driver phone, region |
 | Admin | Email address | Role, facility affiliation |
+| Receptionist | Email address | Name, facility, department |
 
 Phone numbers are stored as supplementary contact information and normalized to E.164 format (`+<country><number>`) when provided. They are **not** used as primary identifiers in the current build.
 
@@ -60,7 +61,8 @@ Email is the current patient-facing notification channel. Staff (doctors, admins
 - Emails sent to patients must never include data belonging to another patient.
 
 ### Patient email triggers (MVP)
-- Registration confirmation with login credentials.
+- Registration confirmation with the patient ID (patients have no password; they sign in to the portal with email + one-time code).
+- One-time access code (OTP) for patient-portal sign-in.
 - Visit summary after a doctor finalizes a consultation.
 - Prescription issued — includes pharmacy lookup link.
 - Medication restock reminder from pharmacy.
@@ -88,14 +90,21 @@ These rules are **non-negotiable** and must be enforced at the data layer, not j
   1. The doctor has an existing past or active visit record with that patient.
   2. The patient has explicitly granted this doctor access (patient-issued authorization).
   3. One of the patient's other treating doctors has granted access on the patient's behalf (peer authorization).
+- Before any of those conditions exist, a doctor may see a patient's identity and allergies/blood type (but no history) **only** while the patient is waiting for care from them: in today's open queue at the doctor's facility, or holding a scheduled appointment with that doctor. Unrelated patients are invisible — not shown in search, not openable by ID.
+- A doctor may open a new visit (which creates condition 1) only from today's open queue entry at their facility that no other doctor has taken, from an appointment with them scheduled for today, or as a follow-up for a patient they already qualify for. A doctor can never self-issue access by starting a visit on an arbitrary patient. Only the visit's own doctor can open its consultation screen.
 - A doctor who is also registered as a patient accesses their **own** health records through the patient role only. Their doctor role grants no elevated access to their own record, and their patient record is subject to the same access rules as any other patient.
 - Authorization grants (conditions 2 and 3 above) are stored as explicit access records in the core layer, are time-limited, and can be revoked by the patient at any time.
 - Cannot access: financial or administrative hospital data. Cannot access records of patients not covered by any of the three conditions above.
 
-### Hospitals / Admins
-- Read/Write: records for patients who have had at least one visit at their facility. Access is scoped to a **visit identifier** — only data relevant to that visit's treatment context.
-- Specialized health data (e.g., psychiatric records, HIV status) held by another facility: access requires a **formal inter-facility approval request**. The holding facility must approve before data is shared.
+### Hospitals (Admin and Receptionist roles)
+The hospital class is split into two staff roles:
+
+- **Admin** is an HR / facility-operations role. It invites and manages staff, maintains facility information, and manages operational data (rooms, equipment, staff schedules, accommodations). Admin sees **aggregate counts only** for patients and is denied every patient record and patient-identifying field at the data layer.
+- **Receptionist** is the front desk. It registers patients, searches them, and manages the day's queue. It reads identifying/registration data (name, email, phone, insurance plan) for patients — never diagnoses, notes, EHR, or prescriptions.
+
+Shared rules:
 - Read: their own facility's statistics and operational data.
+- Specialized health data (e.g., psychiatric records, HIV status) held by another facility: access requires a **formal inter-facility approval request**. The holding facility must approve before data is shared. *(Future module — not built yet.)*
 - Cannot access: data from visits at other facilities without the inter-facility approval flow.
 
 ### Pharmacies
@@ -107,10 +116,12 @@ These rules are **non-negotiable** and must be enforced at the data layer, not j
 ### Technicians
 - Read: patient EHR data **only for the technician's own specialty**. A specialty-scoped technician sees only records of that type for any patient they are assigned to.
   - Example: a bone (orthopedic) technician may read bone/orthopedic EHR data for all patients they serve and SHALL NEVER see cardiac, psychiatric, or any other EHR category.
-- Read: equipment status.
+  - A doctor with a qualifying relationship to the patient assigns the technician to that patient. The technician sees the patient's name only (for identification) — no contact details, diagnosis, or notes.
+- Read/Write: lab tests for a visit at their facility, looked up by the visit's receipt code. Only the tests are shown — never the diagnosis, notes, or patient identity.
+- Read: equipment status for their facility, limited to their specialty's equipment plus general equipment.
 - Cannot access: EHR categories outside their specialty, billing, insurance, or administrative data.
 
-### Ambulance / Dispatch
+### Ambulance / Dispatch *(future module — not built yet)*
 - Read: patient's emergency contact, known critical allergies, and blood type — only when an active emergency dispatch is linked to that patient.
 - Cannot access: full medical history without an active dispatch association.
 
@@ -126,8 +137,8 @@ authorization grants, and specialty scope for technicians).
 
 ### ALL users (shared baseline)
 Every user class, regardless of role, has access to:
-- Login with a unique ID.
-- Insurance marketplace information (plans, coverage options available in the market).
+- Login with a unique ID. Staff sign in with email + password and pick an active role. Patients sign in to the patient portal (`/portal`) with their email + an emailed one-time code.
+- Insurance marketplace information (plans, coverage options available in the market) — **every class except Doctor**. Doctors do not need market insurance data for clinical work.
 - Location and operating hours of hospitals and pharmacies.
 
 ### Patient
@@ -139,20 +150,28 @@ Every user class, regardless of role, has access to:
 - Special accommodations: set their own accommodation needs and check which facilities support them.
 - Appointment scheduler (book, view, reschedule, cancel own appointments).
 - Current insurance information, coverage, and insurance billing.
+- Access grants: give a doctor time-limited access to their history, and revoke it at any time.
+- Visit receipts: each visit's receipt code, tests and results, and attachments.
 
 ### Hospital / Admin
 - Staff availability (doctors, technicians, support staff schedules).
-- Identifiable information for patients, insurance, doctors, pharmacies, and technicians — scoped to their facility and to a qualifying visit relationship per the Access Control Rules.
+- Identifiable information for insurance plans, doctors, pharmacies, and technicians at their facility. **No patient-identifying data** (see Access Control Rules — patient identity is the Receptionist's scope).
 - Room availability.
 - Accommodation availability at their facility.
 - Equipment status.
-- Consent records between patients and doctors.
+- Consent records between patients and doctors, shown **de-identified** (patient reference number, doctor, scope, status, expiry — no patient name or contact).
+- Per-department daily activity counts (aggregate only).
+- Staff invitations and management; facility profile.
+
+### Hospital / Receptionist
+- Register, search, and view basic records for patients (name, email, phone, insurance plan).
+- Today's queue for the facility.
 
 ### Pharmacy
 - Stock information and pricing.
 - Patient purchase history (for patients they have dispensed to).
 - Billing records for hospitals, patients, and insurance.
-- Patient medication history, scoped to a valid prescription/referral per the Access Control Rules.
+- Patient medication history, scoped to a valid prescription/referral per the Access Control Rules. In this build the valid prescription is the patient's active plan, looked up by its pharmacy token.
 
 ### Doctor
 - Appointments with their past, present, and future patients.
@@ -160,15 +179,21 @@ Every user class, regardless of role, has access to:
 - Pharmacy stock levels.
 - Medication history for their patients.
 - Equipment status.
+- Consultations: diagnosis, notes, prescriptions, recommended lab tests, attachments, and EHR entries by category.
+- Peer authorization: grant another doctor time-limited access to a patient under their care. Assign a specialty technician to a patient.
 
 ### Technician
 - Patient EHR limited strictly to the technician's own specialty (see Technicians under Access Control Rules). A bone specialist gets only bone EHR data and never any other category.
+- Lab tests for a visit, looked up by receipt code (tests only).
 - Equipment status.
 
 ### Enforcement notes
 - The shared "ALL" baseline is additive; it never grants access to another class's restricted views.
 - When a feature appears for multiple classes (e.g., equipment status for admins, doctors, and technicians), each class still sees only the subset its role permits.
 - Any new feature added in future iterations must be placed under the correct user class here before it is built, and must respect the Access Control Rules and the Security Specialist constraints in `personas.txt`.
+- This matrix is mirrored in code as `FEATURE_MATRIX` in `src/core/accessControl.ts`. Staff services call `requireFeature()`; denials are audited. Patient-portal services are scoped by the portal session's patient id. Keep the two in sync.
+- Costs shown before a service are labeled **estimates**; recorded charges are labeled **final**. Insurance coverage % splits each charge into insurer and patient portions.
+- All times are stored and entered in UTC in this build (appointments, shifts). Local-time display is a future transport concern.
 
 ---
 
@@ -194,12 +219,21 @@ Every user class, regardless of role, has access to:
 
 The Hackachusetts demo must show this full vertical slice:
 
-1. Receptionist (Admin role) registers a patient via the web UI. Patient receives a registration confirmation email.
+1. Receptionist registers a patient via the web UI. Patient receives a registration confirmation email.
 2. Patient is added to the facility's queue.
 3. Doctor pulls the patient summary from the web dashboard.
 4. Doctor records a visit and writes a prescription via the web UI. Patient receives a visit summary email.
 5. Pharmacy can view the active prescription for that patient.
-6. Admin dashboard shows the day's activity (patients registered, in queue, visits completed).
+6. Admin dashboard shows the day's activity per department (patients registered, in queue, visits completed) as aggregate counts only.
+7. Patient signs in to the portal with email + one-time code and sees their visits, medication plan, appointments, bills, and EHR.
+
+---
+
+## Current Stack
+
+- Node.js + TypeScript, Express, EJS server-rendered views, SQLite (`better-sqlite3`). Tests use Vitest + Supertest against an in-memory database.
+- `npm run dev` re-seeds synthetic data and starts the server. `npm test` runs the suite.
+- Schema lives in `src/core/db.ts`. New columns on existing tables are added through the `ensureColumn` migration helper so existing `hms.db` files keep working.
 
 All demo data must be **synthetic**. No real patient information is ever used.
 

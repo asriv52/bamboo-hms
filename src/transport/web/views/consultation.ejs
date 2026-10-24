@@ -23,10 +23,11 @@
       <p class="muted">Add one row per medication. Leave blank to finalize without a prescription.</p>
       <div id="meds">
         <% for (var i=0;i<3;i++){ %>
-          <div class="grid3" style="margin-bottom:6px">
-            <input type="text" name="medName" placeholder="Medication name" />
-            <input type="text" name="medDosage" placeholder="Dosage e.g. 500mg" />
-            <input type="text" name="medInstructions" placeholder="Instructions e.g. twice daily" />
+          <div class="grid4" style="margin-bottom:6px">
+            <input type="text" name="medName" placeholder="Medication name" aria-label="Medication name" />
+            <input type="text" name="medDosage" placeholder="Dosage e.g. 500mg" aria-label="Dosage" />
+            <input type="text" name="medInstructions" placeholder="Instructions e.g. twice daily" aria-label="Instructions" />
+            <input type="number" name="medDays" min="1" max="365" placeholder="Days supply" aria-label="Days of supply" />
           </div>
         <% } %>
       </div>
@@ -68,7 +69,7 @@
 </main>
 <script>
   function addRow(containerId, html){ var d=document.createElement('div'); d.className='grid3'; d.style.marginBottom='6px'; d.innerHTML=html; document.getElementById(containerId).appendChild(d); }
-  function addMedRow(){ addRow('meds', '<input type="text" name="medName" placeholder="Medication name" /><input type="text" name="medDosage" placeholder="Dosage e.g. 500mg" /><input type="text" name="medInstructions" placeholder="Instructions e.g. twice daily" />'); }
+  function addMedRow(){ var d=document.createElement('div'); d.className='grid4'; d.style.marginBottom='6px'; d.innerHTML='<input type="text" name="medName" placeholder="Medication name" aria-label="Medication name" /><input type="text" name="medDosage" placeholder="Dosage e.g. 500mg" aria-label="Dosage" /><input type="text" name="medInstructions" placeholder="Instructions e.g. twice daily" aria-label="Instructions" /><input type="number" name="medDays" min="1" max="365" placeholder="Days supply" aria-label="Days of supply" />'; document.getElementById('meds').appendChild(d); }
   function addTestRow(){ addRow('tests', '<input type="text" name="testName" placeholder="Test name" /><select name="testPriority"><option value="Low">Low</option><option value="Medium" selected>Medium</option><option value="High">High</option></select><input type="text" name="testNotes" placeholder="Notes (optional)" />'); }
 </script>
 <%- include('partials/foot') %>

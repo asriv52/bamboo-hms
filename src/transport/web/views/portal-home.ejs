@@ -5,6 +5,16 @@
   <p class="muted">Here is your full visit history. Each visit has its own receipt code. Select one to see details.</p>
 
   <div class="card">
+    <h2 style="margin-top:0">Quick actions</h2>
+    <div class="row">
+      <a class="btn" href="/portal/appointments">Book an appointment</a>
+      <a class="btn secondary" href="/portal/medications">My medicines &amp; refills</a>
+      <a class="btn secondary" href="/portal/billing">Bills &amp; costs</a>
+      <a class="btn secondary" href="/portal/health-record">My health record</a>
+    </div>
+  </div>
+
+  <div class="card">
     <div class="row">
       <div class="stat"><div class="n"><%= visits.length %></div><div class="muted">Total visits</div></div>
       <div class="stat"><div class="n"><%= visits.filter(function(v){return v.hasPrescription}).length %></div><div class="muted">With prescriptions</div></div>

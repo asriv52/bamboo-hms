@@ -1,0 +1,50 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <h1>Rooms</h1>
+  <div class="card">
+    <div class="row">
+      <% statuses.forEach(function(s){ %>
+        <div class="stat"><div class="n"><%= rooms.filter(function(r){ return r.status === s; }).length %></div><div class="muted"><%= s %></div></div>
+      <% }); %>
+    </div>
+  </div>
+  <div class="card">
+    <% if (rooms.length === 0) { %>
+      <p class="muted">No rooms added yet.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>Room</th><th>Type</th><th>Status</th><th>Updated</th></tr></thead>
+        <tbody>
+          <% rooms.forEach(function(r){ %>
+            <tr>
+              <td><b><%= r.name %></b></td>
+              <td><%= r.roomType %></td>
+              <td>
+                <form method="post" action="/admin/rooms/<%= r.id %>/status" class="row" style="align-items:center">
+                  <select name="status" aria-label="Status for <%= r.name %>" style="width:auto">
+                    <% statuses.forEach(function(s){ %><option <%= s === r.status ? 'selected' : '' %>><%= s %></option><% }); %>
+                  </select>
+                  <button class="secondary" type="submit">Save</button>
+                </form>
+              </td>
+              <td><%= utc(r.updatedAt) %></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0">Add a room</h2>
+    <form method="post" action="/admin/rooms" class="row" style="align-items:flex-end">
+      <div style="flex:2"><label for="r-name">Name *</label><input id="r-name" type="text" name="name" required /></div>
+      <div style="flex:2"><label for="r-type">Type *</label><input id="r-type" type="text" name="roomType" placeholder="e.g. Ward, Exam, Theatre" required /></div>
+      <div style="flex:1"><label for="r-status">Status</label>
+        <select id="r-status" name="status"><% statuses.forEach(function(s){ %><option><%= s %></option><% }); %></select>
+      </div>
+      <div><button type="submit">Add room</button></div>
+    </form>
+  </div>
+</main>
+<%- include('partials/foot') %>

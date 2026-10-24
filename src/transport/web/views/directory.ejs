@@ -1,0 +1,34 @@
+<%- include('partials/head') %>
+<%- include('partials/nav-any') %>
+<main>
+  <h1>Hospitals &amp; pharmacies</h1>
+  <p class="muted">Locations, opening hours, services, and estimated costs. Costs shown are estimates, not final charges.</p>
+  <% if (facilities.length === 0) { %>
+    <div class="card"><p class="muted">No facilities are listed yet.</p></div>
+  <% } %>
+  <% facilities.forEach(function(f){ %>
+    <div class="card">
+      <h2 style="margin-top:0"><%= f.name %> <span class="pill"><%= f.kind %></span></h2>
+      <p><b>Address:</b> <%= f.address || '—' %> &nbsp; <b>Phone:</b> <%= f.phone || '—' %></p>
+      <p><b>Opening hours:</b> <%= f.operatingHours || 'Not listed' %></p>
+      <% if (f.specialties) { %><p><b>Services:</b> <%= f.specialties %></p><% } %>
+      <% if (f.doctors.length) { %><p><b>Doctors:</b> <%= f.doctors.join(', ') %></p><% } %>
+      <% if (f.accommodations.length) { %>
+        <p><b>Accommodations:</b>
+          <%= f.accommodations.map(function(a){ return a.name + (a.available > 0 ? '' : ' (currently full)'); }).join(', ') %>
+        </p>
+      <% } %>
+      <% if (f.estimatedCosts.length) { %>
+        <table>
+          <thead><tr><th>Service</th><th>For</th><th>Estimated cost</th></tr></thead>
+          <tbody>
+            <% f.estimatedCosts.forEach(function(p){ %>
+              <tr><td><%= p.serviceName %></td><td><%= p.condition || '—' %></td><td><%= money(p.estimatedCents) %> <span class="muted">estimate</span></td></tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+  <% }); %>
+</main>
+<%- include('partials/foot') %>

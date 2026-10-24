@@ -1,0 +1,41 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <h1>Stock &amp; pricing</h1>
+  <div class="card">
+    <h2 style="margin-top:0">Add or update a medicine</h2>
+    <p class="muted">Saving a medicine that already exists updates its quantity, price, and supplier.</p>
+    <form method="post" action="/pharmacy/stock">
+      <div class="row">
+        <div style="flex:2"><label for="s-name">Medicine name *</label><input id="s-name" type="text" name="medicationName" required /></div>
+        <div style="flex:1"><label for="s-qty">Quantity *</label><input id="s-qty" type="number" name="quantity" min="0" required /></div>
+        <div style="flex:1"><label for="s-price">Price each *</label><input id="s-price" type="text" name="unitPrice" placeholder="e.g. 0.25" required /></div>
+        <div style="flex:2"><label for="s-sup">Supplier</label><input id="s-sup" type="text" name="supplier" /></div>
+      </div>
+      <div style="margin-top:12px"><button type="submit">Save medicine</button></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Current stock</h2>
+    <% if (stock.length === 0) { %>
+      <p class="muted">No stock recorded yet.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>Medicine</th><th>Quantity</th><th>Price each</th><th>Supplier</th><th>Updated</th></tr></thead>
+        <tbody>
+          <% stock.forEach(function(s){ %>
+            <tr>
+              <td><b><%= s.medicationName %></b></td>
+              <td><%= s.quantity %><% if (s.quantity < 20) { %> <span class="pill Waiting">low</span><% } %></td>
+              <td><%= money(s.unitPriceCents) %></td>
+              <td><%= s.supplier || '—' %></td>
+              <td><%= utc(s.updatedAt) %></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</main>
+<%- include('partials/foot') %>

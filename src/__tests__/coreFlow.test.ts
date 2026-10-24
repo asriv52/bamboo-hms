@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { db, initSchema } from '../core/db';
 import { createStaffUser, getActivePrescriptionForPatient, getStaffByEmail } from '../core/entityStore';
 import { buildActor, login } from '../core/authService';
-import { registerPatient } from '../core/patientService';
+import { registerPatient, searchPatients } from '../core/patientService';
 import { addToQueue } from '../modules/queue/queueService';
 import {
   finalizeConsultation,
@@ -136,16 +136,21 @@ describe('HMS core', () => {
     const { recep, doc, doc2 } = makeStaff();
     const patient = registerPatient(recep, { email: 'iso@example.com', name: 'Iso Patient' });
 
-    const visit = openVisit(doc, patient.id, null);
+    const entry = addToQueue(recep, patient.id, 'General Medicine');
+    const visit = openVisit(doc, patient.id, entry.id);
     finalizeConsultation(doc, visit.id, { diagnosis: 'X', notes: '', medications: [] });
 
     const docSummary = getPatientSummary(doc, patient.id);
     expect(docSummary.canReadHistory).toBe(true);
     expect(docSummary.history.length).toBeGreaterThanOrEqual(1);
 
-    const doc2Summary = getPatientSummary(doc2, patient.id);
-    expect(doc2Summary.canReadHistory).toBe(false);
-    expect(doc2Summary.history.length).toBe(0);
+    // An unrelated doctor cannot see the patient at all, find them in search,
+    // or give themselves access by starting a visit.
+    expect(() => getPatientSummary(doc2, patient.id)).toThrow(AccessDenied);
+    expect(searchPatients(doc2, 'Iso')).toHaveLength(0);
+    expect(() => openVisit(doc2, patient.id, null)).toThrow(AccessDenied);
+    // Reusing the completed queue entry is also refused.
+    expect(() => openVisit(doc2, patient.id, entry.id)).toThrow(AccessDenied);
   });
 
   it('pharmacy cannot access a patient without an active prescription', () => {

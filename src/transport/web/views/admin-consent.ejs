@@ -1,0 +1,28 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <h1>Consent records</h1>
+  <p class="muted">Access grants to doctors at your facility. Patients are shown by a reference code only — no names or contact details.</p>
+  <div class="card">
+    <% if (records.length === 0) { %>
+      <p class="muted">No consent records.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>Patient ref</th><th>Doctor</th><th>Given by</th><th>Created</th><th>Expires</th><th>Status</th></tr></thead>
+        <tbody>
+          <% records.forEach(function(r){ %>
+            <tr>
+              <td><span class="code"><%= r.patientRef %></span></td>
+              <td><%= r.doctorName %></td>
+              <td><%= r.grantedBy === 'patient' ? 'Patient' : 'Treating doctor' %></td>
+              <td><%= r.createdAt.slice(0,10) %></td>
+              <td><%= r.expiresAt.slice(0,10) %></td>
+              <td><span class="pill <%= r.status === 'Active' ? 'Completed' : 'Waiting' %>"><%= r.status %></span></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</main>
+<%- include('partials/foot') %>

@@ -1,0 +1,56 @@
+<%- include('partials/head') %>
+<%- include('partials/portal-nav') %>
+<main>
+  <h1>Who can see my records</h1>
+  <p class="muted">Doctors who treated you can already see your history. You can also give another doctor time-limited access, and take any access away at any time.</p>
+
+  <div class="card">
+    <h2 style="margin-top:0">Give a doctor access</h2>
+    <form method="post" action="/portal/access">
+      <div class="row">
+        <div style="flex:2">
+          <label for="doctorId">Doctor</label>
+          <select id="doctorId" name="doctorId" required>
+            <% doctors.forEach(function(d){ %>
+              <option value="<%= d.id %>"><%= d.name %> — <%= d.facilityName %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div style="flex:1">
+          <label for="days">For how many days</label>
+          <input id="days" type="number" name="days" min="1" max="365" value="30" required />
+        </div>
+      </div>
+      <div style="margin-top:12px"><button type="submit">Give access</button></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Access you have given</h2>
+    <% if (grants.length === 0) { %>
+      <p class="muted">You have not given anyone extra access.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>Doctor</th><th>Given by</th><th>Until</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          <% grants.forEach(function(g){ %>
+            <tr>
+              <td><%= g.doctorName %></td>
+              <td><%= g.grantedBy === 'patient' ? 'You' : 'Your treating doctor' %></td>
+              <td><%= g.expiresAt.slice(0,10) %></td>
+              <td><span class="pill <%= g.status === 'Active' ? 'Completed' : 'Waiting' %>"><%= g.status %></span></td>
+              <td>
+                <% if (g.status === 'Active') { %>
+                  <form method="post" action="/portal/access/<%= g.id %>/revoke" style="margin:0">
+                    <button class="secondary" type="submit">Remove access</button>
+                  </form>
+                <% } %>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</main>
+<%- include('partials/foot') %>

@@ -1,0 +1,25 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <h1>My patients</h1>
+  <p class="muted">Patients you have seen in a visit, with their current medicines. Open a patient for full medication history and records.</p>
+  <div class="card">
+    <% if (rows.length === 0) { %>
+      <p class="muted">You have not seen any patients yet.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>Patient</th><th>Current medicines</th><th>Prescriptions</th></tr></thead>
+        <tbody>
+          <% rows.forEach(function(r){ %>
+            <tr>
+              <td><a href="/patients/<%= r.patientId %>"><b><%= r.name %></b></a></td>
+              <td><%= r.activeMedications.length ? r.activeMedications.map(function(m){ return m.name + ' ' + m.dosage; }).join(', ') : '—' %></td>
+              <td><%= r.prescriptionCount %></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</main>
+<%- include('partials/foot') %>

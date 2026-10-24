@@ -1,0 +1,59 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <h1>Billing records</h1>
+  <div class="card">
+    <div class="row">
+      <div class="stat"><div class="n"><%= money(billing.totals.patientCents) %></div><div class="muted">Billed to patients</div></div>
+      <div class="stat"><div class="n"><%= money(billing.totals.insuranceCents) %></div><div class="muted">Billed to insurance</div></div>
+      <div class="stat"><div class="n"><%= money(billing.totals.outstandingCents) %></div><div class="muted">Outstanding</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">By referring hospital</h2>
+    <% if (billing.byHospital.length === 0) { %>
+      <p class="muted">No bills yet.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>Hospital</th><th>Bills</th><th>Total</th></tr></thead>
+        <tbody>
+          <% billing.byHospital.forEach(function(h){ %>
+            <tr><td><%= h.hospital %></td><td><%= h.count %></td><td><%= money(h.amountCents) %></td></tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">All bills</h2>
+    <% if (billing.charges.length === 0) { %>
+      <p class="muted">No bills yet.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>Date</th><th>Patient</th><th>Items</th><th>Total</th><th>Insurance</th><th>Patient</th><th>Status</th></tr></thead>
+        <tbody>
+          <% billing.charges.forEach(function(c){ %>
+            <tr>
+              <td><%= c.createdAt.slice(0,10) %></td>
+              <td><%= c.patientName %></td>
+              <td><%= c.description %></td>
+              <td><%= money(c.amountCents) %></td>
+              <td><%= money(c.insuranceCents) %></td>
+              <td><%= money(c.patientCents) %></td>
+              <td>
+                <% if (c.status === 'Outstanding') { %>
+                  <form method="post" action="/pharmacy/billing/<%= c.id %>/paid" style="margin:0">
+                    <button class="secondary" type="submit">Mark paid</button>
+                  </form>
+                <% } else { %><span class="pill Completed">Paid</span><% } %>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</main>
+<%- include('partials/foot') %>

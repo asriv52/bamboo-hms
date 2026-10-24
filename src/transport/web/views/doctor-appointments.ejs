@@ -1,0 +1,28 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <h1>My appointments</h1>
+  <% [['Upcoming', appts.upcoming], ['Past & cancelled', appts.past]].forEach(function(section){ %>
+    <div class="card">
+      <h2 style="margin-top:0"><%= section[0] %></h2>
+      <% if (section[1].length === 0) { %>
+        <p class="muted">None.</p>
+      <% } else { %>
+        <table>
+          <thead><tr><th>When</th><th>Patient</th><th>Reason</th><th>Status</th></tr></thead>
+          <tbody>
+            <% section[1].forEach(function(a){ %>
+              <tr>
+                <td><%= utc(a.scheduledAt) %></td>
+                <td><a href="/patients/<%= a.patientId %>"><%= a.patientName %></a></td>
+                <td><%= a.reason || '—' %></td>
+                <td><span class="pill"><%= a.status %></span></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+  <% }); %>
+</main>
+<%- include('partials/foot') %>

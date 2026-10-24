@@ -52,6 +52,7 @@ export function activateInvite(
     facilityCode: invite.facilityCode,
     department: invite.department,
     roles: invite.roles,
+    specialty: invite.specialty,
   });
   markInviteUsed(invite.id);
 

@@ -1,0 +1,25 @@
+<%- include('partials/head') %>
+<%- include('partials/portal-nav') %>
+<main>
+  <h1>My health record</h1>
+  <p class="muted">Entries your doctors added to your record. For visit details, tests, and files, see <a href="/portal/home">My visits</a>.</p>
+  <div class="card">
+    <% if (records.length === 0) { %>
+      <p class="muted">There are no health record entries yet.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>Date</th><th>Type</th><th>Entry</th></tr></thead>
+        <tbody>
+          <% records.forEach(function(r){ %>
+            <tr>
+              <td><%= r.createdAt.slice(0,10) %></td>
+              <td><span class="pill"><%= r.category %></span></td>
+              <td><b><%= r.title %></b><br/><%= r.content %></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</main>
+<%- include('partials/foot') %>

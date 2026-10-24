@@ -84,7 +84,7 @@ describe('Visit access code (receipt)', () => {
   it('creates a unique, well-formed code and looks it up', () => {
     const { recep, doc } = staff();
     const p = registerPatient(recep, { email: 'rc@example.com', name: 'RC Patient' });
-    const visit = openVisit(doc, p.id, null);
+    const visit = openVisit(doc, p.id, addToQueue(recep, p.id).id);
     expect(visit.accessCode).toMatch(/^RCPT-[A-Z2-9]{5}$/);
     const found = getVisitByAccessCode(visit.accessCode.toLowerCase());
     expect(found?.id).toBe(visit.id);
@@ -115,8 +115,9 @@ describe('Patient portal (account-level)', () => {
     const actors = staff();
     const { recep, doc } = actors;
     const p = registerPatient(recep, { email: 'acct@example.com', name: 'Account Holder' });
-    const v1 = openVisit(doc, p.id, null);
+    const v1 = openVisit(doc, p.id, addToQueue(recep, p.id).id);
     finalizeConsultation(doc, v1.id, { diagnosis: 'A', notes: '', medications: [{ name: 'Med', dosage: '1', instructions: 'x' }] });
+    // Follow-up visit: allowed because the doctor is already treating the patient.
     const v2 = openVisit(doc, p.id, null);
     finalizeConsultation(doc, v2.id, { diagnosis: 'B', notes: '', medications: [], tests: [{ testName: 'CBC', priority: 'High', notes: null }] });
     return { p, v1, v2, actors };
@@ -138,7 +139,7 @@ describe('Patient portal (account-level)', () => {
     const { p, v1, actors } = patientWithTwoVisits();
     const { recep, doc } = actors;
     const other = registerPatient(recep, { email: 'other@example.com', name: 'Other' });
-    const ov = openVisit(doc, other.id, null);
+    const ov = openVisit(doc, other.id, addToQueue(recep, other.id).id);
     // p's session must not read other's visit.
     expect(() => getPortalVisitDetail(p.id, ov.id)).toThrow(PortalAccessError);
     // p can read its own.
@@ -168,7 +169,7 @@ describe('Technician lab flow', () => {
   it('records a result for a visit looked up by code and denies diagnosis access', () => {
     const { recep, doc, tech, techOther } = staff();
     const p = registerPatient(recep, { email: 'lab@example.com', name: 'Lab Patient' });
-    const visit = openVisit(doc, p.id, null);
+    const visit = openVisit(doc, p.id, addToQueue(recep, p.id).id);
     finalizeConsultation(doc, visit.id, {
       diagnosis: 'Confidential diagnosis',
       notes: 'Confidential notes',
@@ -200,7 +201,7 @@ describe('Attachments', () => {
   it('uploads, authorizes staff download, and rejects invalid type/size', () => {
     const { recep, doc } = staff();
     const p = registerPatient(recep, { email: 'att@example.com', name: 'Att Patient' });
-    const visit = openVisit(doc, p.id, null);
+    const visit = openVisit(doc, p.id, addToQueue(recep, p.id).id);
 
     const att = uploadVisitAttachment(doc, visit.id, {
       originalName: 'note.txt',

@@ -1,0 +1,21 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <h1>Purchase history</h1>
+  <p class="muted">Everything dispensed at your pharmacy. Only patients you have dispensed to appear here.</p>
+  <div class="card">
+    <% if (rows.length === 0) { %>
+      <p class="muted">Nothing dispensed yet.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>When</th><th>Patient</th><th>Items</th></tr></thead>
+        <tbody>
+          <% rows.forEach(function(r){ %>
+            <tr><td><%= utc(r.dispensedAt) %></td><td><%= r.patientName %></td><td><%= r.itemsDispensed %></td></tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</main>
+<%- include('partials/foot') %>

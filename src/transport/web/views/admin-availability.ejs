@@ -1,0 +1,44 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <h1>Staff availability</h1>
+  <p class="muted">Shift times are in UTC. "On duty now" compares against the current UTC time.</p>
+  <div class="card">
+    <table>
+      <thead><tr><th>Staff</th><th>Role</th><th>Now</th><th>Shifts</th></tr></thead>
+      <tbody>
+        <% rows.forEach(function(r){ %>
+          <tr>
+            <td><b><%= r.name %></b><br/><span class="muted"><%= r.department %></span></td>
+            <td><%= r.roles.join(', ') %><% if (r.specialty) { %><br/><span class="muted"><%= r.specialty %></span><% } %></td>
+            <td><span class="pill <%= r.onDutyNow ? 'Completed' : '' %>"><%= r.onDutyNow ? 'On duty' : 'Off duty' %></span></td>
+            <td>
+              <% if (r.shifts.length === 0) { %><span class="muted">No shifts</span><% } %>
+              <% r.shifts.forEach(function(s){ %>
+                <form method="post" action="/admin/availability/<%= s.id %>/delete" class="row" style="align-items:center;margin:2px 0">
+                  <span><%= s.day %> <%= s.startTime %>–<%= s.endTime %></span>
+                  <button class="secondary" type="submit" aria-label="Remove <%= s.day %> shift for <%= r.name %>">Remove</button>
+                </form>
+              <% }); %>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0">Add a shift</h2>
+    <form method="post" action="/admin/availability" class="row" style="align-items:flex-end">
+      <div style="flex:2"><label for="sh-staff">Staff</label>
+        <select id="sh-staff" name="staffId"><% rows.forEach(function(r){ %><option value="<%= r.staffId %>"><%= r.name %></option><% }); %></select>
+      </div>
+      <div style="flex:1"><label for="sh-day">Day</label>
+        <select id="sh-day" name="dayOfWeek"><% days.forEach(function(d, i){ %><option value="<%= i %>"><%= d %></option><% }); %></select>
+      </div>
+      <div style="flex:1"><label for="sh-start">Start</label><input id="sh-start" type="time" name="startTime" value="08:00" required /></div>
+      <div style="flex:1"><label for="sh-end">End</label><input id="sh-end" type="time" name="endTime" value="16:00" required /></div>
+      <div><button type="submit">Add shift</button></div>
+    </form>
+  </div>
+</main>
+<%- include('partials/foot') %>

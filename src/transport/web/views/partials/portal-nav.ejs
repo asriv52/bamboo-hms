@@ -1,8 +1,17 @@
 <header>
   <span class="brand">Your Health Records</span>
   <% if (typeof patient !== 'undefined' && patient) { %>
-    <nav>
+    <nav aria-label="Patient menu">
       <a href="/portal/home">My visits</a>
+      <a href="/portal/appointments">Appointments</a>
+      <a href="/portal/medications">My medicines</a>
+      <a href="/portal/billing">Bills &amp; costs</a>
+      <a href="/portal/health-record">Health record</a>
+      <a href="/portal/access">Who can see my records</a>
+      <a href="/portal/accommodations">Accommodations</a>
+      <a href="/medicines">Medicine prices</a>
+      <a href="/directory">Hospitals &amp; pharmacies</a>
+      <a href="/insurance-plans">Insurance plans</a>
     </nav>
     <span class="spacer"></span>
     <span class="who"><%= patient.name %></span>
@@ -11,3 +20,6 @@
     </form>
   <% } %>
 </header>
+<% if (typeof notice !== 'undefined' && notice) { %>
+  <div style="max-width:860px;margin:16px auto 0;padding:0 20px"><div class="ok" role="status"><%= notice %></div></div>
+<% } %>
