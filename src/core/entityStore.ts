@@ -7,8 +7,11 @@ import {
   BedStatus,
   DispensingRecord,
   EhrCategory,
+<<<<<<< HEAD
   Equipment,
   EquipmentStatus,
+=======
+>>>>>>> 432cb53d8d98f8414120addb0a7be3dfe58403bd
   Facility,
   FacilityKind,
   LabTest,
@@ -735,7 +738,11 @@ export function getFacility(code: string): Facility | null {
   return row ? rowToFacility(row) : null;
 }
 
+<<<<<<< HEAD
 // ---- Beds -----------------------------------------------------------------
+=======
+// ---- Beds / rooms ---------------------------------------------------------
+>>>>>>> 432cb53d8d98f8414120addb0a7be3dfe58403bd
 
 function rowToBed(row: any): Bed {
   return {
@@ -801,6 +808,7 @@ export function updateBedStatus(
   return bed && bed.facilityCode === facilityCode ? bed : null;
 }
 
+<<<<<<< HEAD
 // ---- Equipment ------------------------------------------------------------
 
 // Equipment on the UNIFIED schema. These accessors serve the receptionist
@@ -872,6 +880,8 @@ export function updateEquipmentStatus(
   return eq && eq.facilityCode === facilityCode ? eq : null;
 }
 
+=======
+>>>>>>> 432cb53d8d98f8414120addb0a7be3dfe58403bd
 export function listFacilities(kind?: FacilityKind): Facility[] {
   const rows = kind
     ? db.prepare('SELECT * FROM facilities WHERE kind = ? ORDER BY name ASC').all(kind)

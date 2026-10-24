@@ -190,7 +190,7 @@
             <tr>
               <td><%= eq.name %></td>
               <td>
-                <%= eq.room %>
+                <%= eq.location || "—" %>
                 <% if (ev.roomOccupants && ev.roomOccupants.length) { %>
                   <div class="occ-list">
                     <% ev.roomOccupants.forEach(function(o){ %>

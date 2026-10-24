@@ -2,14 +2,13 @@ import { db, initSchema } from './core/db';
 import {
   createAttachment,
   createBed,
-  createEquipment,
+  createGrant,
   createLabTest,
   createPatient,
   createPrescription,
   createStaffUser,
   createVisit,
   finalizeVisit,
-  getPatientByEmail,
   getStaffByEmail,
   listBedsByFacility,
   recordLabTestResult,
@@ -149,17 +148,21 @@ function seed(): void {
     listBedsByFacility(FACILITY).map((b) => [`${b.room}-${b.label}`, b])
   );
 
-  // Equipment inventory with mixed statuses and their rooms.
-  const equipmentPlan: Array<{ name: string; room: string; status: any }> = [
-    { name: 'Ventilator', room: 'ER-1', status: 'InUse' },
-    { name: 'Defibrillator', room: 'ER-1', status: 'Operational' },
-    { name: 'ECG monitor', room: 'ER-2', status: 'Operational' },
-    { name: 'X-ray machine', room: 'R-103', status: 'Maintenance' },
-    { name: 'Infusion pump', room: 'R-101', status: 'Operational' },
-    { name: 'Ultrasound scanner', room: 'R-102', status: 'Broken' },
+  // Equipment inventory. Category drives technician specialty scoping;
+  // location is the room label so the receptionist board can link equipment
+  // to the patients in that room.
+  const equipmentPlan: Array<{ name: string; category: string; room: string; status: any }> = [
+    { name: 'Ventilator', category: 'General', room: 'ER-1', status: 'InUse' },
+    { name: 'Defibrillator', category: 'Cardiac', room: 'ER-1', status: 'Operational' },
+    { name: 'ECG monitor', category: 'Cardiac', room: 'ER-2', status: 'Operational' },
+    { name: 'X-ray machine', category: 'Orthopedic', room: 'R-103', status: 'Maintenance' },
+    { name: 'Infusion pump', category: 'General', room: 'R-101', status: 'Operational' },
+    { name: 'Ultrasound scanner', category: 'General', room: 'R-102', status: 'OutOfService' },
+    { name: 'Hematology analyzer', category: 'Laboratory', room: 'Laboratory', status: 'InUse' },
+    { name: 'Oxygen concentrator', category: 'General', room: 'Ward A', status: 'Operational' },
   ];
   for (const e of equipmentPlan) {
-    createEquipment({ facilityCode: FACILITY, name: e.name, room: e.room, status: e.status });
+    createEquipment({ facilityCode: FACILITY, name: e.name, category: e.category, location: e.room, status: e.status });
   }
 
   // Staff logins (synthetic). One multi-role account to demo role selection.
@@ -211,10 +214,6 @@ function seed(): void {
   createRoom({ facilityCode: FACILITY, name: 'Exam 1', roomType: 'Exam', status: 'Available' });
   createRoom({ facilityCode: FACILITY, name: 'Exam 2', roomType: 'Exam', status: 'Occupied' });
   createRoom({ facilityCode: FACILITY, name: 'Ward A', roomType: 'Ward', status: 'Cleaning' });
-  createEquipment({ facilityCode: FACILITY, name: 'Portable X-ray', category: 'Orthopedic', location: 'Orthopedics', status: 'Operational' });
-  createEquipment({ facilityCode: FACILITY, name: 'ECG machine', category: 'Cardiac', location: 'General Medicine', status: 'Maintenance' });
-  createEquipment({ facilityCode: FACILITY, name: 'Hematology analyzer', category: 'Laboratory', location: 'Laboratory', status: 'InUse' });
-  createEquipment({ facilityCode: FACILITY, name: 'Oxygen concentrator', category: 'General', location: 'Ward A', status: 'Operational' });
   upsertFacilityAccommodation({ facilityCode: FACILITY, accommodation: 'Wheelchair access', capacity: 4, inUse: 1 });
   upsertFacilityAccommodation({ facilityCode: FACILITY, accommodation: 'Language translator', capacity: 2, inUse: 2 });
   upsertFacilityAccommodation({ facilityCode: FACILITY, accommodation: 'Ground-floor access', capacity: 10, inUse: 3 });
