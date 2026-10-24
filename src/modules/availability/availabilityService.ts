@@ -169,7 +169,7 @@ export function getAvailability(actor: Actor): AvailabilityView {
 
   const equipmentView: EquipmentView[] = equipment.map((e) => ({
     equipment: e,
-    roomOccupants: roomOccupants.get(e.room) ?? [],
+    roomOccupants: (e.room ? roomOccupants.get(e.room) : undefined) ?? [],
   }));
 
   const totals = {

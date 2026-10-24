@@ -284,15 +284,31 @@ export interface Room {
   updatedAt: string;
 }
 
-export const EQUIPMENT_STATUSES = ['Operational', 'InUse', 'Maintenance', 'OutOfService'] as const;
+// Unified equipment status vocabulary: the union of both merged feature sets.
+// 'OutOfService' comes from the facility-ops UI; 'Broken' from the receptionist
+// seat-map. Both are retained so neither stack breaks.
+export const EQUIPMENT_STATUSES = [
+  'Operational',
+  'InUse',
+  'Maintenance',
+  'OutOfService',
+  'Broken',
+] as const;
 export type EquipmentStatus = (typeof EQUIPMENT_STATUSES)[number];
 
+/**
+ * Unified equipment record (superset of both merged schemas).
+ * - `category` + `location` are used by the facility-ops / technician UI.
+ * - `room` is used by the receptionist availability seat-map (equipment-by-room).
+ * All three are optional at the type level so both consumer stacks work.
+ */
 export interface Equipment {
   id: number;
   facilityCode: string;
   name: string;
   category: string;
   location: string | null;
+  room: string | null;
   status: EquipmentStatus;
   updatedAt: string;
 }
@@ -338,17 +354,6 @@ export interface Bed {
   room: string;
   label: string;
   status: BedStatus;
-  updatedAt: string;
-}
-
-export type EquipmentStatus = 'Operational' | 'InUse' | 'Maintenance' | 'Broken';
-
-export interface Equipment {
-  id: number;
-  facilityCode: string;
-  name: string;
-  room: string;
-  status: EquipmentStatus;
   updatedAt: string;
 }
 

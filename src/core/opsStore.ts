@@ -64,6 +64,7 @@ function rowToEquipment(row: any): Equipment {
     name: row.name,
     category: row.category,
     location: row.location,
+    room: row.room ?? null,
     status: row.status as EquipmentStatus,
     updatedAt: row.updated_at,
   };
@@ -74,13 +75,14 @@ export function createEquipment(input: {
   name: string;
   category: string;
   location: string | null;
+  room?: string | null;
   status: EquipmentStatus;
 }): Equipment {
   const info = db
     .prepare(
-      'INSERT INTO equipment (facility_code, name, category, location, status, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT INTO equipment (facility_code, name, category, location, room, status, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
     )
-    .run(input.facilityCode, input.name, input.category, input.location, input.status, nowUtc());
+    .run(input.facilityCode, input.name, input.category, input.location, input.room ?? null, input.status, nowUtc());
   return getEquipment(Number(info.lastInsertRowid))!;
 }
 

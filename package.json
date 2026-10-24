@@ -10,6 +10,7 @@
     "seed": "ts-node src/seed.ts",
     "predev": "npm run seed",
     "dev": "ts-node src/server.ts",
+    "sms": "ts-node src/transport/sms/smsSimulator.ts",
     "start": "node dist/server.js",
     "test": "vitest run"
   },

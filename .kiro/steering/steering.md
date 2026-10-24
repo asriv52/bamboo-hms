@@ -183,26 +183,14 @@ access is intentionally narrow — they are NOT a clinical or administrative rol
 
 ### Hospital / Admin
 - Staff availability (doctors, technicians, support staff schedules).
-<<<<<<< HEAD
-- Identifiable information for patients, insurance, doctors, pharmacies, and technicians — scoped to their facility and to a qualifying visit relationship per the Access Control Rules.
-- Accommodation availability at their facility.
-- Consent records between patients and doctors.
-- NOTE: Bed/room availability and equipment status are owned by the **Receptionist** role,
-  not Admin. Admin manages staff, facility configuration, and consent — not the live
-  bed/equipment occupancy board.
-=======
 - Identifiable information for insurance plans, doctors, pharmacies, and technicians at their facility. **No patient-identifying data** (see Access Control Rules — patient identity is the Receptionist's scope).
-- Room availability.
 - Accommodation availability at their facility.
-- Equipment status.
+- Equipment status (facility-ops view: category, location, operational state).
+- Room and staff-shift management.
 - Consent records between patients and doctors, shown **de-identified** (patient reference number, doctor, scope, status, expiry — no patient name or contact).
 - Per-department daily activity counts (aggregate only).
 - Staff invitations and management; facility profile.
-
-### Hospital / Receptionist
-- Register, search, and view basic records for patients (name, email, phone, insurance plan).
-- Today's queue for the facility.
->>>>>>> 6cbf91ef6a5b3ebde990e101ed39dd1a43bc4572
+- NOTE: Live bed occupancy (who is in which bed/room) is owned by the **Receptionist** role via the availability seat-map, not Admin. Admin manages staff, facility configuration, equipment inventory, rooms, and consent — not the live bed-occupancy board.
 
 ### Pharmacy
 - Stock information and pricing.

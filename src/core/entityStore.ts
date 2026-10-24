@@ -3,15 +3,12 @@ import { decryptPII, encryptPII, hashPassword, shortCode } from './crypto';
 import {
   AccessGrant,
   Attachment,
-<<<<<<< HEAD
   Bed,
   BedStatus,
-  Equipment,
-  EquipmentStatus,
-=======
   DispensingRecord,
   EhrCategory,
->>>>>>> 6cbf91ef6a5b3ebde990e101ed39dd1a43bc4572
+  Equipment,
+  EquipmentStatus,
   Facility,
   FacilityKind,
   LabTest,
@@ -738,8 +735,7 @@ export function getFacility(code: string): Facility | null {
   return row ? rowToFacility(row) : null;
 }
 
-<<<<<<< HEAD
-// ---- Beds / rooms ---------------------------------------------------------
+// ---- Beds -----------------------------------------------------------------
 
 function rowToBed(row: any): Bed {
   return {
@@ -807,12 +803,18 @@ export function updateBedStatus(
 
 // ---- Equipment ------------------------------------------------------------
 
+// Equipment on the UNIFIED schema. These accessors serve the receptionist
+// seat-map (room-based). The facility-ops UI uses its own accessors in
+// opsStore against the same table; both read the superset columns.
+
 function rowToEquipment(row: any): Equipment {
   return {
     id: row.id,
     facilityCode: row.facility_code,
     name: row.name,
-    room: row.room,
+    category: row.category ?? 'General',
+    location: row.location ?? null,
+    room: row.room ?? null,
     status: row.status,
     updatedAt: row.updated_at,
   };
@@ -822,7 +824,7 @@ export function listEquipmentByFacility(facilityCode: string): Equipment[] {
   const rows = db
     .prepare(
       `SELECT * FROM equipment WHERE facility_code = ?
-       ORDER BY room ASC, name ASC`
+       ORDER BY COALESCE(room, location, '') ASC, name ASC`
     )
     .all(facilityCode);
   return rows.map(rowToEquipment);
@@ -836,18 +838,22 @@ export function getEquipment(id: number): Equipment | null {
 export function createEquipment(input: {
   facilityCode: string;
   name: string;
-  room: string;
+  room?: string | null;
+  category?: string;
+  location?: string | null;
   status?: EquipmentStatus;
 }): Equipment {
   const info = db
     .prepare(
-      `INSERT INTO equipment (facility_code, name, room, status, updated_at)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO equipment (facility_code, name, category, location, room, status, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       input.facilityCode,
       input.name,
-      input.room,
+      input.category ?? 'General',
+      input.location ?? null,
+      input.room ?? null,
       input.status ?? 'Operational',
       nowUtc()
     );
@@ -864,13 +870,13 @@ export function updateEquipmentStatus(
   ).run(status, nowUtc(), id, facilityCode);
   const eq = getEquipment(id);
   return eq && eq.facilityCode === facilityCode ? eq : null;
-=======
+}
+
 export function listFacilities(kind?: FacilityKind): Facility[] {
   const rows = kind
     ? db.prepare('SELECT * FROM facilities WHERE kind = ? ORDER BY name ASC').all(kind)
     : db.prepare('SELECT * FROM facilities ORDER BY name ASC').all();
   return (rows as any[]).map(rowToFacility);
->>>>>>> 6cbf91ef6a5b3ebde990e101ed39dd1a43bc4572
 }
 
 // ---- Staff invites --------------------------------------------------------

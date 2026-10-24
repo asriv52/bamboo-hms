@@ -25,7 +25,6 @@ import {
   upsertStock,
 } from './core/commerceStore';
 import {
-  createEquipment,
   createRoom,
   createShift,
   setPatientAccommodations,
@@ -63,7 +62,6 @@ export const RESET_SQL = `
     DELETE FROM audit_records;
     DELETE FROM notification_jobs;
     DELETE FROM beds;
-    DELETE FROM equipment;
     DELETE FROM patients;
     DELETE FROM staff_users;
     DELETE FROM staff_invites;
@@ -257,11 +255,67 @@ function seed(): void {
   createLabTest({ visitId: v2.id, testName: 'Complete Blood Count', priority: 'High', notes: 'Fasting not required.' });
   const doneTest = createLabTest({ visitId: v2.id, testName: 'Iron Panel', priority: 'Medium', notes: null });
   recordLabTestResult(doneTest.id, 'Within normal range.', null);
+  // Current active medication plan from visit 2 (used for the pharmacy token demo).
+  const rx2 = createPrescription({
+    visitId: v2.id,
+    patientId: jordan.id,
+    medications: [{ name: 'Ferrous Sulfate', dosage: '200mg', instructions: 'Once daily with food', daysSupply: 30 }],
+    pharmacyLookupToken: randomToken(),
+  });
+
+  // EHR records + appointments so the patient SMS simulator has content to
+  // return for the EHR and APPT commands. Synthetic only.
+  createEhrRecord({
+    patientId: jordan.id, visitId: v1.id, facilityCode: FACILITY, category: 'General',
+    title: 'Seasonal flu — reviewed', content: 'Rest and fluids advised. Follow up in one week.',
+    authorId: doctor.id,
+  });
+  createEhrRecord({
+    patientId: jordan.id, visitId: v2.id, facilityCode: FACILITY, category: 'Laboratory',
+    title: 'Blood work ordered (anemia screen)', content: 'CBC and iron panel requested.',
+    authorId: doctor.id,
+  });
+  createEhrRecord({
+    patientId: jordan.id, visitId: null, facilityCode: FACILITY, category: 'Radiology',
+    title: 'Chest X-ray — clear', content: 'No acute findings.',
+    authorId: doctor.id,
+  });
+  // Mina has more than 5 records, so texting EHR from her phone shows the
+  // pick-a-type menu instead of a flat list.
+  const minaRecords: Array<{ category: any; title: string; content: string }> = [
+    { category: 'Orthopedic', title: 'Wrist sprain follow-up', content: 'Healing well; continue support brace.' },
+    { category: 'Orthopedic', title: 'Wrist sprain — initial exam', content: 'Grade 1 sprain, brace fitted, rest 2 weeks.' },
+    { category: 'Orthopedic', title: 'Knee pain assessment', content: 'Mild strain after a fall. Ice and rest advised.' },
+    { category: 'Radiology', title: 'Wrist X-ray — no fracture', content: 'No fracture seen. Soft tissue swelling only.' },
+    { category: 'Laboratory', title: 'Routine blood panel', content: 'All values within normal range.' },
+    { category: 'Laboratory', title: 'Vitamin D level', content: 'Slightly low. Supplement recommended.' },
+    { category: 'Cardiac', title: 'ECG — routine screen', content: 'Normal sinus rhythm.' },
+    { category: 'General', title: 'Annual check-up', content: 'Healthy. Blood pressure 118/76.' },
+  ];
+  for (const r of minaRecords) {
+    createEhrRecord({
+      patientId: mina.id, visitId: null, facilityCode: FACILITY, category: r.category,
+      title: r.title, content: r.content, authorId: doctor2.id,
+    });
+  }
+
+  createAppointment({
+    patientId: jordan.id, doctorId: doctor.id, facilityCode: FACILITY,
+    scheduledAt: daysFromNow(3, 10), reason: 'Flu follow-up',
+  });
+  createAppointment({
+    patientId: jordan.id, doctorId: doctor2.id, facilityCode: FACILITY,
+    scheduledAt: daysFromNow(14, 14), reason: 'Blood work review',
+  });
+  createAppointment({
+    patientId: mina.id, doctorId: doctor2.id, facilityCode: FACILITY,
+    scheduledAt: daysFromNow(5, 9), reason: 'Orthopedic check',
+  });
 
   // Occupancy demo: two OPEN visits assigned to beds, so the receptionist's
   // availability board shows which patient + doctor is at which bed/room. These
   // visits are left Open (not finalized) so they count as current occupancy.
-  const mina = getPatientByEmail('mina.patient@example.test')!;
+  // `mina` is already declared above with the other synthetic patients.
   const regBed = bedByKey.get('R-101-B'); // in the Regular ward
   const erBed = bedByKey.get('ER-1-A');   // in the Emergency ward
   if (regBed) {

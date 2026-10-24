@@ -1,0 +1,200 @@
+============================================================
+PROGRESS LOG — Hackachusetts Healthcare Project
+Session date: 2026-10-24
+============================================================
+
+This file summarizes everything done in today's working session: planning
+documents, code features, a broken merge that was repaired, and the current
+verified state of the build. Written for teammates picking the project up.
+
+------------------------------------------------------------
+QUICK STATUS
+------------------------------------------------------------
+- Build: compiles clean (npx tsc --noEmit, exit 0).
+- Tests: 8 test files, 53 tests, all passing (npm test).
+- Seed: runs end-to-end on a fresh DB (npm run seed).
+- Two runnable apps: the main HMS web app (npm run dev, port 3000) and the
+  new SMS simulator (npm run sms, port 3100).
+
+
+============================================================
+1. STEERING & PLANNING DOCUMENTS
+============================================================
+
+.kiro/steering/steering.md  (project guidance for all future work)
+- Reframed the project from "SMS-first" to a web app with EMAIL as the current
+  patient notification channel; SMS is a FUTURE, OPTIONAL, patient-only module.
+- Core entities keyed by EMAIL (phone is supplementary, E.164 when present).
+- Modular architecture principle: core layer -> transport modules -> domain
+  modules. New features are modules; the core stays stable.
+- Access Control Rules (enforced at the data layer, not just UI):
+    * Patients: own records only + public hospital/pharmacy info.
+    * Doctors: patient history only via a qualifying visit, patient
+      authorization, or peer authorization. Doctor-as-patient isolation.
+    * Hospitals/Admins: visit-scoped; specialized cross-facility data needs
+      an approval flow.
+    * Pharmacies: active medication plan via valid prescription only.
+    * Technicians: EHR limited to their OWN specialty (e.g. a bone tech only
+      ever sees orthopedic EHR).
+    * Receptionists: intake + bed/equipment availability + occupancy only;
+      NO clinical content.
+    * Ambulance/dispatch: emergency-scoped critical info only.
+- "Application Requirements by User Class" matrix: the authoritative
+  feature/permission list per role (ALL / Patient / Receptionist / Admin /
+  Pharmacy / Doctor / Technician).
+- Email notification design + hard rule: no SMS infrastructure in this build.
+
+personas.txt  (adversarial test personas, each with EARS test cases)
+- 9 personas, each in role-based-prompt form (<role>/<rules>/<constraints>/
+  <test_cases>) with EARS-notation IDs:
+    1 Normal Patient (NP), 2 Emergency Patient (EP), 3 Family Patient (FP),
+    4 Financially Burdened Patient (FB), 5 Not Tech Savvy (TS),
+    6 Application Researcher (AR), 7 Security Specialist (SS),
+    8 Emergencies-at-Hospital Specialist (HE), 9 Doctor (DR).
+- Security Specialist expanded to treat the system as NATIONAL CRITICAL
+  INFRASTRUCTURE (a country-wide government program): added SS-11..SS-33
+  covering identity integrity, insider-threat/separation of duties,
+  auditability/non-repudiation, data sovereignty, continuity/safe degradation,
+  and national-scale consent governance.
+
+update.txt  (security/UI follow-up plan from the localhost review)
+- ITEM 1 HTTPS/secure cookie: DEFERRED (hackathon; needs a TLS cert).
+- ITEM 2 CSRF protection: TODO (steps written; tokens to add to all POST forms).
+- ITEM 3 Audit logging: VERIFIED already implemented (append-only audit log).
+- ITEM 4 Doctor could load another doctor's visit via GET /visits/:id: was a
+  real leak; fix documented (route must go through the scoped service).
+- ITEM 5 Static billing UI: TODO (inert page, no GET/POST).
+
+
+============================================================
+2. FEATURES BUILT
+============================================================
+
+A) BED / EQUIPMENT AVAILABILITY + OCCUPANCY  (Receptionist)
+- New module src/modules/availability/availabilityService.ts (facility-scoped,
+  audited). View src/transport/web/views/availability.ejs renders a
+  cinema/plane-style seat map: beds grouped by ward -> room.
+- Added beds table + visits.bed_id link; Bed/BedOccupancy types.
+- Occupancy: each occupied bed shows which PATIENT + DOCTOR are there, so
+  visitors can be directed. Occupancy is location/assignment data only — never
+  clinical content.
+- Receptionist can:
+    * Assign a patient + doctor to an available bed (creates an open visit
+      linked to the bed; marks it Occupied).
+    * Remove an occupant / free a bed — the patient/doctor vanish from the room
+      but the PATIENT RECORD STAYS in the database (only the bed link clears).
+    * Setting a bed to Available also auto-releases its occupant.
+- Patient DISTRIBUTION dashboard at the top of the page: total patients in the
+  building, per-ward occupied/total, and a per-room fill bar (no scrolling to
+  gauge load).
+- Moved this whole feature from the Admin role to the RECEPTIONIST role
+  (routes under /availability, dashboard button + nav link under Receptionist).
+
+B) EMAIL / VIRTUAL MAILBOX  (teammate work, merged)
+- Virtual in-memory mailbox + provider + dev-only mailbox web page, with tests
+  (mailbox.test.ts, mailboxProvider.test.ts, mailboxWeb.test.ts).
+
+C) LARGER CLINICAL/COMMERCE FEATURE SET  (teammate work, merged)
+- EHR records (categorized), technician assignments, appointments, pharmacy
+  stock + pricing, service price estimates, insurance marketplace + patient
+  coverage, charges/billing, accommodations, rooms, equipment-by-category,
+  staff shifts. Stores: careStore.ts, commerceStore.ts, opsStore.ts and their
+  services/routes.
+
+D) SMS SIMULATOR  (patient-facing, NEW — latest work)
+- Standalone optional transport (nothing depends on it), per steering.
+- src/modules/sms/smsService.ts — resolves the patient by the sending phone
+  number, parses the command, replies in short SMS-style lines. Reads existing
+  stores; never leaks another patient's data; every inbound text is audited.
+- src/transport/sms/smsSimulator.ts — its own Express app on port 3100 with a
+  phone-style chat UI, a SIM (phone) picker, quick-command chips, and a
+  POST /sms JSON API.
+- Supported patient commands (case-insensitive):
+    HELP, EHR, MEDS (with restock date), PHARMACY (nearby + stock + prices),
+    HOSPITAL (nearby + specialties/hours), APPT (upcoming + reminder).
+- Unknown phone numbers get a privacy-safe reply, never data.
+- Added dummy EHR records + appointments to the seed so all commands return
+  real content.
+- Run with: npm run sms   (then open http://localhost:3100)
+
+
+============================================================
+3. MERGE CONFLICT REPAIR (important)
+============================================================
+A git merge on main (commit e3b0303) had been COMMITTED WITH UNRESOLVED
+conflict markers, so the project did not compile and no tests could run.
+- Marker-bearing files: src/core/db.ts, src/core/entityStore.ts.
+- Silent (unmarked) compile breakers: src/core/types.ts (duplicate Equipment /
+  EquipmentStatus) and src/seed.ts (duplicate createEquipment import,
+  redeclared `mina`, undeclared `rx2`). Doc conflict in steering.md.
+
+Resolution:
+- The two sides each defined an incompatible `equipment` table. Unified into a
+  SUPERSET schema: columns category + location (facility-ops UI) AND room
+  (receptionist seat-map), with a merged status vocabulary (both OutOfService
+  and Broken). `beds` (ours) and `rooms` (theirs) kept as independent tables.
+- Merged both migration bodies under one idempotent ensureColumn() helper; the
+  migration backfills the superset columns so older databases self-heal.
+- Fixed downstream type errors (opsStore, availabilityService, seed) and the
+  steering doc conflict.
+- Result: clean compile, all tests pass, seed runs.
+
+ACTION FOR TEAMMATES: the schema self-heals on startup, but anyone with a very
+old local hms.db that still errors can safely delete hms.db / hms.db-shm /
+hms.db-wal and re-run `npm run seed` (all data is synthetic).
+
+
+============================================================
+4. DATABASE / SCHEMA NOTES
+============================================================
+- SQLite (hms.db) locally; in-memory for tests.
+- initSchema() creates all tables, then runMigrations() adds columns to older
+  DBs idempotently (visits.bed_id; facilities.kind/operating_hours;
+  staff_users.specialty/license_number; staff_invites.specialty;
+  dispensing_records.patient_id; equipment.category/location/room).
+- Reminder: CREATE TABLE IF NOT EXISTS never alters an existing table — new
+  columns on existing tables MUST be added via ensureColumn() in runMigrations.
+
+
+============================================================
+5. HOW TO RUN
+============================================================
+  npm run seed     # load synthetic demo data (safe to re-run)
+  npm run dev      # main HMS web app  -> http://localhost:3000
+  npm run sms      # SMS simulator     -> http://localhost:3100
+  npm test         # full test suite (53 tests)
+  npx tsc --noEmit # type-check only
+
+Demo logins (password: demo1234): admin@ / reception@ / doctor@ / doctor2@ /
+pharmacy@ / technician@ / bonetech@ / multi@  (all @clinic.test).
+Patient portal: open /portal, enter jordan.patient@example.test, use the OTP
+printed to the seed/server log.
+SMS demo: open the simulator, pick Jordan Rivera (+15550100001), text MEDS /
+EHR / PHARMACY / HOSPITAL / APPT.
+
+
+============================================================
+6. VERIFICATION SNAPSHOT (end of session)
+============================================================
+- npx tsc --noEmit                 -> exit 0 (no errors)
+- npm test                         -> 8 files / 53 tests passing
+- npm run seed                     -> completes, seeds both feature sets
+- SMS simulator live-tested via POST /sms for all 6 commands + unknown-number
+  privacy path.
+
+
+============================================================
+7. OPEN ITEMS / NEXT STEPS
+============================================================
+- CSRF protection (update.txt ITEM 2): add tokens to all POST forms, including
+  the new /availability assign/release/status forms and /sms is read-only so
+  exempt.
+- Static billing UI (update.txt ITEM 5).
+- Doctor visit-scoping fix (update.txt ITEM 4) if not already carried in the
+  merged code — verify GET /visits/:id routes through the scoped service.
+- Mapping: facilities have no lat/lng yet, so SMS "nearby" is town-level.
+  Adding Leaflet/OpenStreetMap + coordinates would make PHARMACY/HOSPITAL
+  results distance-ranked (discussed; not yet built).
+- Optional: outbound-push simulation for restock/appointment reminders (today
+  they are returned on-demand via MEDS/APPT).
+- HTTPS/secure cookie for any real deployment (update.txt ITEM 1).
