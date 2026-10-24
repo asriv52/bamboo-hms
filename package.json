@@ -8,6 +8,7 @@
     "build": "tsc && npm run copy-views",
     "copy-views": "mkdir -p dist/transport/web && cp -r src/transport/web/views dist/transport/web/views",
     "seed": "ts-node src/seed.ts",
+    "rag:build": "ts-node src/modules/assistant/buildIndex.ts",
     "predev": "npm run seed",
     "dev": "ts-node src/server.ts",
     "sms": "ts-node src/transport/sms/smsSimulator.ts",

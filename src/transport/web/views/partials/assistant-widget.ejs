@@ -1,0 +1,130 @@
+<%
+  // Label only. The server decides the real user class from the session.
+  var assistantRole = (typeof actor !== 'undefined' && actor) ? actor.activeRole
+    : ((typeof patient !== 'undefined' && patient) ? 'Patient' : 'Visitor');
+%>
+<style>
+  .ha-launch { position:fixed; right:20px; bottom:20px; z-index:50; border-radius:999px; padding:12px 18px;
+               box-shadow:0 6px 18px rgba(0,0,0,.18); font-weight:600; }
+  .ha-panel { position:fixed; right:20px; bottom:76px; z-index:50; width:360px; max-width:calc(100vw - 40px);
+              height:480px; max-height:calc(100vh - 110px); background:#fff; border:1px solid var(--line);
+              border-radius:12px; box-shadow:0 12px 32px rgba(0,0,0,.2); display:none; flex-direction:column; overflow:hidden; }
+  .ha-panel.open { display:flex; }
+  .ha-head { background:var(--accent); color:#fff; padding:10px 14px; display:flex; align-items:center; gap:8px; }
+  .ha-head b { flex:1; font-size:15px; }
+  .ha-head button { background:transparent; color:#fff; padding:2px 8px; font-size:18px; }
+  .ha-log { flex:1; overflow-y:auto; padding:12px; background:var(--bg); font-size:14px; }
+  .ha-msg { margin:0 0 10px; padding:9px 11px; border-radius:10px; max-width:88%; line-height:1.4; }
+  .ha-msg.user { background:var(--accent); color:#fff; margin-left:auto; }
+  .ha-msg.bot { background:#fff; border:1px solid var(--line); }
+  .ha-msg.bot.warn { border-color:#f5b5b5; background:#fde8e8; }
+  .ha-msg h4 { margin:0 0 4px; font-size:14px; }
+  .ha-msg ol { margin:6px 0 0; padding-left:20px; }
+  .ha-msg .ha-go { display:inline-block; margin-top:8px; font-size:13px; padding:6px 10px; }
+  .ha-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .ha-chips button { background:#eef2f3; color:var(--fg); font-size:12px; padding:5px 9px; border-radius:999px; }
+  .ha-form { display:flex; gap:6px; padding:10px; border-top:1px solid var(--line); background:#fff; }
+  .ha-form input { flex:1; }
+  .ha-note { font-size:11px; color:var(--muted); padding:0 12px 8px; background:#fff; }
+</style>
+
+<button type="button" class="ha-launch no-print" id="ha-launch" aria-controls="ha-panel" aria-expanded="false">💬 Need help?</button>
+<section class="ha-panel no-print" id="ha-panel" role="dialog" aria-label="Help assistant">
+  <div class="ha-head">
+    <b>Help assistant</b>
+    <span style="font-size:12px;opacity:.9"><%= assistantRole %></span>
+    <button type="button" id="ha-close" aria-label="Close help">×</button>
+  </div>
+  <div class="ha-log" id="ha-log" aria-live="polite"></div>
+  <form class="ha-form" id="ha-form">
+    <input id="ha-input" type="text" maxlength="300" autocomplete="off" placeholder="Ask how to do something…" aria-label="Your question" />
+    <button type="submit">Ask</button>
+  </form>
+  <div class="ha-note">Guides you to features for your account. Not medical advice. In an emergency, call your local emergency number.</div>
+</section>
+
+<script>
+(function () {
+  var panel = document.getElementById('ha-panel');
+  var launch = document.getElementById('ha-launch');
+  var log = document.getElementById('ha-log');
+  var form = document.getElementById('ha-form');
+  var input = document.getElementById('ha-input');
+  var started = false;
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text) e.textContent = text; // never innerHTML: replies are rendered as text
+    return e;
+  }
+  function scroll() { log.scrollTop = log.scrollHeight; }
+
+  function renderReply(r) {
+    var box = el('div', 'ha-msg bot' + (r.outcome === 'emergency' ? ' warn' : ''));
+    if (r.title) box.appendChild(el('h4', null, r.title));
+    box.appendChild(el('div', null, r.message));
+    if (r.steps && r.steps.length) {
+      var ol = el('ol');
+      r.steps.forEach(function (s) { ol.appendChild(el('li', null, s)); });
+      box.appendChild(ol);
+    }
+    if (r.link && typeof r.link.href === 'string' && r.link.href.charAt(0) === '/') {
+      var a = el('a', 'btn ha-go', r.link.label);
+      a.href = r.link.href;
+      box.appendChild(a);
+    }
+    if (r.suggestions && r.suggestions.length) {
+      var chips = el('div', 'ha-chips');
+      r.suggestions.forEach(function (s) {
+        var b = el('button', null, s.title);
+        b.type = 'button';
+        b.addEventListener('click', function () { ask({ featureKey: s.key }, s.title); });
+        chips.appendChild(b);
+      });
+      box.appendChild(chips);
+    }
+    log.appendChild(box);
+    scroll();
+  }
+
+  function ask(body, shownText) {
+    if (shownText) { log.appendChild(el('div', 'ha-msg user', shownText)); scroll(); }
+    fetch('/assistant/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(body)
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (r) {
+        if (r.error) { log.appendChild(el('div', 'ha-msg bot warn', r.error)); scroll(); return; }
+        renderReply(r);
+      })
+      .catch(function () {
+        log.appendChild(el('div', 'ha-msg bot warn', 'Sorry, the assistant is unavailable right now.'));
+        scroll();
+      });
+  }
+
+  function setOpen(open) {
+    panel.classList.toggle('open', open);
+    launch.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) {
+      if (!started) { started = true; ask({ q: 'help' }); }
+      input.focus();
+    }
+  }
+
+  launch.addEventListener('click', function () { setOpen(!panel.classList.contains('open')); });
+  document.getElementById('ha-close').addEventListener('click', function () { setOpen(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setOpen(false); });
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var q = input.value.trim();
+    if (!q) return;
+    input.value = '';
+    ask({ q: q }, q);
+  });
+})();
+</script>

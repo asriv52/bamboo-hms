@@ -172,11 +172,7 @@ export function initSchema(): void {
       created_at TEXT NOT NULL
     );
 
-<<<<<<< HEAD
     -- Hospital beds. Status drives the receptionist "seat-map" availability view.
-=======
-    -- Hospital beds/rooms. Status drives the "seat-map" availability view.
->>>>>>> 432cb53d8d98f8414120addb0a7be3dfe58403bd
     CREATE TABLE IF NOT EXISTS beds (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       facility_code TEXT NOT NULL,
@@ -303,16 +299,10 @@ export function initSchema(): void {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       facility_code TEXT NOT NULL,
       name TEXT NOT NULL,
-<<<<<<< HEAD
       category TEXT NOT NULL DEFAULT 'General', -- EHR category, or 'General'
-      location TEXT,
-      room TEXT,                      -- room it currently lives in (seat-map)
-      status TEXT NOT NULL DEFAULT 'Operational', -- Operational|InUse|Maintenance|OutOfService|Broken
-=======
-      category TEXT NOT NULL,         -- EHR category, or 'General'
-      location TEXT,                  -- room label, e.g. 'ER-1'
-      status TEXT NOT NULL,           -- 'Operational' | 'InUse' | 'Maintenance' | 'OutOfService'
->>>>>>> 432cb53d8d98f8414120addb0a7be3dfe58403bd
+      location TEXT,                  -- room label, e.g. 'ER-1' (used by the seat-map)
+      room TEXT,                      -- legacy column, kept so older databases still load
+      status TEXT NOT NULL DEFAULT 'Operational', -- Operational|InUse|Maintenance|OutOfService
       updated_at TEXT NOT NULL
     );
 
@@ -395,6 +385,52 @@ export function initSchema(): void {
       UNIQUE (pseudonym, source_key)
     );
     CREATE INDEX IF NOT EXISTS idx_wearable_obs_pseudonym ON wearable_observations (pseudonym, observed_on);
+
+    -- ---- Help assistant retrieval index (RAG) ------------------------------
+    -- Built from modules/assistant/knowledgeBase.ts by a local word2vec model.
+    -- Rebuilt automatically when the knowledge base or model settings change.
+    CREATE TABLE IF NOT EXISTS kb_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS kb_features (
+      key TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,                 -- 'feature' | 'restriction'
+      title TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      path TEXT,
+      steps TEXT NOT NULL                 -- JSON array: the instruction path
+    );
+    CREATE TABLE IF NOT EXISTS kb_feature_roles (
+      feature_key TEXT NOT NULL REFERENCES kb_features(key) ON DELETE CASCADE,
+      role TEXT NOT NULL,
+      PRIMARY KEY (role, feature_key)
+    );
+    CREATE TABLE IF NOT EXISTS kb_chunks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      feature_key TEXT NOT NULL REFERENCES kb_features(key) ON DELETE CASCADE,
+      source TEXT NOT NULL,               -- 'title' | 'summary' | 'example'
+      text TEXT NOT NULL,
+      vector BLOB NOT NULL                -- Float32 sentence embedding (unit length)
+    );
+    CREATE TABLE IF NOT EXISTS kb_word_vectors (
+      word TEXT PRIMARY KEY,
+      freq REAL NOT NULL,
+      vector BLOB NOT NULL                -- Float32 word2vec vector
+    );
+
+    -- Questions the assistant could not answer for the user's class, so the
+    -- team can see which features are missing. Queries are redacted of
+    -- emails, phone numbers, codes, and long numbers before storage.
+    CREATE TABLE IF NOT EXISTS assistant_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      role TEXT NOT NULL,
+      query TEXT NOT NULL,
+      outcome TEXT NOT NULL,              -- 'missing' | 'unclear' | 'other_role'
+      best_feature_key TEXT,
+      best_score REAL,
+      created_at TEXT NOT NULL
+    );
   `);
 
   runMigrations();
@@ -416,17 +452,11 @@ function runMigrations(): void {
   ensureColumn('staff_users', 'license_number', 'TEXT');
   ensureColumn('staff_invites', 'specialty', 'TEXT');
   ensureColumn('dispensing_records', 'patient_id', 'INTEGER');
-<<<<<<< HEAD
   // Unified equipment: make sure ALL superset columns exist regardless of which
   // side's older equipment table a database was created with.
   ensureColumn('equipment', 'category', "TEXT NOT NULL DEFAULT 'General'");
   ensureColumn('equipment', 'location', 'TEXT');
   ensureColumn('equipment', 'room', 'TEXT');
-=======
-  ensureColumn('visits', 'bed_id', 'INTEGER REFERENCES beds(id)');
-  ensureColumn('equipment', 'category', "TEXT NOT NULL DEFAULT 'General'");
-  ensureColumn('equipment', 'location', 'TEXT');
->>>>>>> 432cb53d8d98f8414120addb0a7be3dfe58403bd
 }
 
 /** Add a column to an existing table if it is missing (idempotent). */

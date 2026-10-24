@@ -1,0 +1,46 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main>
+  <h1>Help assistant: unanswered requests</h1>
+  <p class="muted">Questions users asked the help assistant that no feature in their user class answered. Use this to plan improvements. Emails, phone numbers, codes, and long numbers are removed before storage.</p>
+
+  <div class="card">
+    <h2 style="margin-top:0">By user class</h2>
+    <% if (log.summary.length === 0) { %>
+      <p class="muted">No unanswered requests yet.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>User class</th><th>Outcome</th><th>Count</th></tr></thead>
+        <tbody>
+          <% log.summary.forEach(function(s){ %>
+            <tr><td><%= s.role %></td><td><span class="pill"><%= s.outcome %></span></td><td><%= s.count %></td></tr>
+          <% }); %>
+        </tbody>
+      </table>
+      <p class="muted"><b>missing</b>: nothing matched. <b>unclear</b>: only a weak match, so suggestions were shown. <b>other_role</b>: another user class has that feature.</p>
+    <% } %>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Recent requests</h2>
+    <% if (log.rows.length === 0) { %>
+      <p class="muted">Nothing logged.</p>
+    <% } else { %>
+      <table style="font-size:13px">
+        <thead><tr><th>When</th><th>User class</th><th>Question</th><th>Outcome</th><th>Closest feature (score)</th></tr></thead>
+        <tbody>
+          <% log.rows.forEach(function(r){ %>
+            <tr>
+              <td><%= utc(r.createdAt) %></td>
+              <td><%= r.role %></td>
+              <td><%= r.query %></td>
+              <td><span class="pill"><%= r.outcome %></span></td>
+              <td class="muted"><%= r.bestFeatureKey || '—' %><%= r.bestScore !== null ? ' (' + r.bestScore.toFixed(2) + ')' : '' %></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</main>
+<%- include('partials/foot') %>

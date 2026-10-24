@@ -2,8 +2,11 @@ import { config } from './core/config';
 import { initSchema } from './core/db';
 import { retryQueued } from './core/notificationService';
 import { createApp } from './transport/web/app';
+import { ensureAssistantIndex } from './modules/assistant/assistantService';
 
 initSchema();
+// Build the help-assistant retrieval index if the knowledge base changed.
+if (ensureAssistantIndex()) console.log('Help assistant index rebuilt.');
 
 const app = createApp();
 

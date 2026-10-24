@@ -247,7 +247,8 @@ export type StaffFeature =
   | 'patient.insurance.set'
   | 'wearables.doctor'
   | 'wearables.research'
-  | 'wearables.reidentify';
+  | 'wearables.reidentify'
+  | 'assistant.requests';
 
 const ALL_STAFF: Role[] = ['Admin', 'Receptionist', 'Doctor', 'Pharmacy', 'Technician'];
 
@@ -277,6 +278,8 @@ export const FEATURE_MATRIX: Record<StaffFeature, Role[]> = {
   'wearables.doctor': ['Doctor'],
   'wearables.research': ['Doctor'],
   'wearables.reidentify': ['Doctor'],
+  // Help-assistant log of unanswered questions (redacted), for product planning.
+  'assistant.requests': ['Admin'],
 };
 
 export function canUseFeature(actor: Actor, feature: StaffFeature): boolean {
