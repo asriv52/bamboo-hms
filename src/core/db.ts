@@ -172,11 +172,7 @@ export function initSchema(): void {
       created_at TEXT NOT NULL
     );
 
-<<<<<<< HEAD
     -- Hospital beds. Status drives the receptionist "seat-map" availability view.
-=======
-    -- Hospital beds/rooms. Status drives the "seat-map" availability view.
->>>>>>> 432cb53d8d98f8414120addb0a7be3dfe58403bd
     CREATE TABLE IF NOT EXISTS beds (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       facility_code TEXT NOT NULL,
@@ -303,16 +299,10 @@ export function initSchema(): void {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       facility_code TEXT NOT NULL,
       name TEXT NOT NULL,
-<<<<<<< HEAD
       category TEXT NOT NULL DEFAULT 'General', -- EHR category, or 'General'
       location TEXT,
       room TEXT,                      -- room it currently lives in (seat-map)
       status TEXT NOT NULL DEFAULT 'Operational', -- Operational|InUse|Maintenance|OutOfService|Broken
-=======
-      category TEXT NOT NULL,         -- EHR category, or 'General'
-      location TEXT,                  -- room label, e.g. 'ER-1'
-      status TEXT NOT NULL,           -- 'Operational' | 'InUse' | 'Maintenance' | 'OutOfService'
->>>>>>> 432cb53d8d98f8414120addb0a7be3dfe58403bd
       updated_at TEXT NOT NULL
     );
 
@@ -416,17 +406,11 @@ function runMigrations(): void {
   ensureColumn('staff_users', 'license_number', 'TEXT');
   ensureColumn('staff_invites', 'specialty', 'TEXT');
   ensureColumn('dispensing_records', 'patient_id', 'INTEGER');
-<<<<<<< HEAD
   // Unified equipment: make sure ALL superset columns exist regardless of which
   // side's older equipment table a database was created with.
   ensureColumn('equipment', 'category', "TEXT NOT NULL DEFAULT 'General'");
   ensureColumn('equipment', 'location', 'TEXT');
   ensureColumn('equipment', 'room', 'TEXT');
-=======
-  ensureColumn('visits', 'bed_id', 'INTEGER REFERENCES beds(id)');
-  ensureColumn('equipment', 'category', "TEXT NOT NULL DEFAULT 'General'");
-  ensureColumn('equipment', 'location', 'TEXT');
->>>>>>> 432cb53d8d98f8414120addb0a7be3dfe58403bd
 }
 
 /** Add a column to an existing table if it is missing (idempotent). */

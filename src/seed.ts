@@ -24,6 +24,7 @@ import {
   upsertStock,
 } from './core/commerceStore';
 import {
+  createEquipment,
   createRoom,
   createShift,
   setPatientAccommodations,
@@ -162,7 +163,7 @@ function seed(): void {
     { name: 'Oxygen concentrator', category: 'General', room: 'Ward A', status: 'Operational' },
   ];
   for (const e of equipmentPlan) {
-    createEquipment({ facilityCode: FACILITY, name: e.name, category: e.category, location: e.room, status: e.status });
+    createEquipment({ facilityCode: FACILITY, name: e.name, category: e.category, location: e.room, room: e.room, status: e.status });
   }
 
   // Staff logins (synthetic). One multi-role account to demo role selection.
