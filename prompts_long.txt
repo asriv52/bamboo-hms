@@ -1,0 +1,67 @@
+# Personas as test cases.
+This section details the kinds of people who will use our application and their job is to find problems with our program at each iteration to ensure features don't clash with the functionality for users.
+- Normal Patient: This person is a healthy individual who normally goes for check ins and will focus on the app's usage for most of the public.
+- Emergency Patient: This person is concerned with time as they are in an emergency. They will be in a panicked state and will have trouble navigating and ingesting app information. They are more focused on instinctual browsing so the UI must be minimalist and not cluttered / confusing.
+- Family Patient(s): Child and guardian dynamic. The child shouldn't get too much access but if they managed to accidentally get accessed to their guardian or personal account there should be railguards to prevent unintended edits or modifications. Guardians on the other hand should be able to monitor their child or teen for issues ahead of time.
+- Financially Burdened Patient: This person is worried about the complicated nature of health care cost. The billing section should be important to this patient. This patient is concerned that at any step of the stage they should be able to not be surprised by costs.
+- Not Tech Savvy: This person is focused on decluttering the application to ensure that a button/feature isn't nested too deep within the website or worse yet, website that have recursive links can cause frustration.
+- Application Researcher: This person is concerned with looking at what is already produced and takes in the opinions of our users as well as similar websites to our product and make modifications to stand out. It should try and search the web for: improvements that other apps have over ours, minimalist design that is consistent with other websites so users can recognize instead of learning, and remove any bad designs that can cause frustration for our users. After every update this person makes, the application building process pauses for us (the developers) to review the changes.
+- Security Specialist: This person handles data access so that we do not violate HIPAA and other health regulations regarding patient data. They are also responsible for our application's vulnerabilities to hackers or malicious actors who try to gain access to unrestricted information. This person's suggestions are more concerned with keeping the application robust instead of UI or minimalist.
+- Emergencies at hospital specialist: This person is concerned when the emergency happens at a hospital such as patient having a sudden heart attack, a psychotic episode patient, or equipment failure. He is more concerned with how the application will help users (patients or doctors or hospitals) resolve this issue. Instead of detailing steps to take during an emergency, what information should the application have to make responding to it less costly, more user friendly, and much faster.
+- Doctor: This person is concerned with the ease of use for doctors. Doctors are concerned with healing patients and not navigating technology so the UI should reflect that. Things like doctor notes/perscription/files should be easily accessible and not worry about data being lost.
+
+With these persona(s), I want you to build a AI specific role prompt for each person so that it fits the ROLE BASED PROMPTING style as well as have these personas try to build test cases in the EARS notation so that we can try to pass them as we develop our application:
+Example:
+<role> Persona's Identity </role>
+<rules> Outputs Format such as the EARS notation </rules>
+<constraints> Never be able to look at webpages that are not assigned to their permissions such as patients only looking at patient side website or doctors only seeing doctor side websites and judging that </constraints>
+
+
+
+
+
+
+
+
+
+Application Requirements / functionality
+This separates our users into classes where each website should maintain the functionality / requirements for each users.
++ ALL: Every user class here should have this feature
+- Login with a unique ID
+- Information of the insurance market
+- Location, Time of Hospitals and pharmacies
++ Patient:
+- Their past, present, future visits information.
+- Current medication to be taken and when to get more medication. This includes what medicine to eat at when. When to get more medicine and where.
+- Billing information of what they have to pay and they are expected to pay for certain conditions.
+- Electronic Health Record related to them.
+- Pharmacy prices, medicine, and stock
+- Special accomodations that they can set and see if other facilities support these accomodations.
+- Appointment Scheduler
+- Current insurance information and coverage and billing.
++ Hospital/Admin:
+- Staff availabilities
+- Patient, insurance, doctor, pharmacy, technician informations that are identifiable.
+- Room availabilities
+- Accomadations availabilities
+- Equipment status
+- Consents between patients, doctors
++ Pharmacies:
+- Stock information and price
+- Patient purchase history
+- Billing for hospitals, patients, insurance
+- Patient medication history
++ Doctors:
+- Appointments with past, present, future patients
+- Patient EHR for only patients under them
+- Pharmacy stocks
+- Medication History for patient(s)
+- Equipment status
++ Technician:
+- Patient EHR only for technician's specialists. Bone specialists should only have bone EHR for all visitors and will never get other types of EHR. 
+- Equipment status.
+
+This is what the website should look like or have as functionality. Keep in mind these rules and edit the steering.md to ensure future updates consider these functionalities.
+
+Needs a navbar and a sign out option
+No way to view EHR and database to store doctor notes/files. Doctor uploads files but he has no way to see those notes

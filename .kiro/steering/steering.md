@@ -26,6 +26,7 @@ All entities are identified by at least one piece of **personally identifiable i
 |---|---|---|
 | Patient | Email address | Name, phone number, national ID, address |
 | Doctor / Specialist | Email address | Name, phone number, license number, facility |
+| Technician | Email address | Name, specialty, license number, facility |
 | Hospital / Clinic | Facility code | Name, address, phone, email |
 | Pharmacy | Pharmacy code | Name, address, phone, email |
 | Ambulance | Unit ID | Driver phone, region |
@@ -103,9 +104,71 @@ These rules are **non-negotiable** and must be enforced at the data layer, not j
 - Read (public): which medications are available at which pharmacies, at what price, and from which supplier — this data is visible to patients and doctors as well.
 - Cannot access: diagnoses, clinical notes, or any health data beyond what is needed to fulfill a prescription.
 
+### Technicians
+- Read: patient EHR data **only for the technician's own specialty**. A specialty-scoped technician sees only records of that type for any patient they are assigned to.
+  - Example: a bone (orthopedic) technician may read bone/orthopedic EHR data for all patients they serve and SHALL NEVER see cardiac, psychiatric, or any other EHR category.
+- Read: equipment status.
+- Cannot access: EHR categories outside their specialty, billing, insurance, or administrative data.
+
 ### Ambulance / Dispatch
 - Read: patient's emergency contact, known critical allergies, and blood type — only when an active emergency dispatch is linked to that patient.
 - Cannot access: full medical history without an active dispatch association.
+
+---
+
+## Application Requirements by User Class
+
+This section is the authoritative feature/permission matrix. Every website view and
+API endpoint must be scoped to the requesting user's class. A user class must never
+be able to load a view or retrieve data that is not listed for its class below.
+EHR access is further scoped by the Access Control Rules above (visit relationship,
+authorization grants, and specialty scope for technicians).
+
+### ALL users (shared baseline)
+Every user class, regardless of role, has access to:
+- Login with a unique ID.
+- Insurance marketplace information (plans, coverage options available in the market).
+- Location and operating hours of hospitals and pharmacies.
+
+### Patient
+- Past, present, and future visit information (own records only).
+- Current medication plan: which medicine to take and when, when to refill, and where to obtain refills.
+- Billing: what they currently owe and expected costs for given conditions/treatments.
+- Electronic Health Record (EHR) for records belonging to them.
+- Pharmacy prices, available medicines, and stock levels.
+- Special accommodations: set their own accommodation needs and check which facilities support them.
+- Appointment scheduler (book, view, reschedule, cancel own appointments).
+- Current insurance information, coverage, and insurance billing.
+
+### Hospital / Admin
+- Staff availability (doctors, technicians, support staff schedules).
+- Identifiable information for patients, insurance, doctors, pharmacies, and technicians — scoped to their facility and to a qualifying visit relationship per the Access Control Rules.
+- Room availability.
+- Accommodation availability at their facility.
+- Equipment status.
+- Consent records between patients and doctors.
+
+### Pharmacy
+- Stock information and pricing.
+- Patient purchase history (for patients they have dispensed to).
+- Billing records for hospitals, patients, and insurance.
+- Patient medication history, scoped to a valid prescription/referral per the Access Control Rules.
+
+### Doctor
+- Appointments with their past, present, and future patients.
+- Patient EHR **only for patients under their care** (qualifying visit, patient authorization, or peer authorization per the Access Control Rules).
+- Pharmacy stock levels.
+- Medication history for their patients.
+- Equipment status.
+
+### Technician
+- Patient EHR limited strictly to the technician's own specialty (see Technicians under Access Control Rules). A bone specialist gets only bone EHR data and never any other category.
+- Equipment status.
+
+### Enforcement notes
+- The shared "ALL" baseline is additive; it never grants access to another class's restricted views.
+- When a feature appears for multiple classes (e.g., equipment status for admins, doctors, and technicians), each class still sees only the subset its role permits.
+- Any new feature added in future iterations must be placed under the correct user class here before it is built, and must respect the Access Control Rules and the Security Specialist constraints in `personas.txt`.
 
 ---
 
